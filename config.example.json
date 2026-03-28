@@ -1,0 +1,163 @@
+{
+  "facebookAccount": {
+    "email": "YOUR_FACEBOOK_EMAIL@gmail.com",
+    "password": "YOUR_FACEBOOK_PASSWORD",
+    "2FASecret": "",
+    "i_user": "",
+    "proxy": null,
+    "userAgent": "Mozilla/5.0 (Linux; Android 12; M2102J20SG) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.0.0 Mobile Safari/537.36",
+    "intervalGetNewCookie": 1440,
+    "notes": "Automatically retrieves new cookies every x minutes. Recommended: 1440 (1 day)."
+  },
+  "antiInbox": false,
+  "language": "ar",
+  "notesLanguage": "change language using ISO 639-1 code (e.g. ar, en, vi...)",
+  "nickNameBot": "",
+  "prefix": ".",
+  "adminOnly": {
+    "enable": false,
+    "ignoreCommand": [
+      "الاوامر",
+      "menu",
+      "commands",
+      "help",
+      "cmds",
+      "بلاك",
+      "black",
+      "blk",
+      "ذكاء"
+    ]
+  },
+  "adminBot": [
+    "YOUR_FACEBOOK_ID_HERE"
+  ],
+  "reactUnsend": {
+    "enable": true,
+    "onlyAdmin": true,
+    "emojis": [
+      "😡",
+      "🤬"
+    ],
+    "notes": "If enable = true, bot will unsend any message reacted with these emojis. If onlyAdmin = true, only adminBot IDs can trigger it."
+  },
+  "blackListMode": {
+    "enable": false,
+    "blackListIds": [],
+    "notes": "If enabled, only IDs in blackListIds can use the bot."
+  },
+  "blackListModeThread": {
+    "enable": false,
+    "blackListThreadIds": [],
+    "notes": "If enabled, only threads in blackListThreadIds can use the bot."
+  },
+  "database": {
+    "type": "sqlite",
+    "uriMongodb": "",
+    "autoSyncWhenStart": false,
+    "autoRefreshThreadInfoFirstTime": true,
+    "notes": "Recommended using 'mongodb' or 'sqlite'."
+  },
+  "timeZone": "Asia/Riyadh",
+  "apiKeys": {
+    "gemini": "YOUR_GEMINI_API_KEY_HERE",
+    "groq": ""
+  },
+  "credentials": {
+    "gmailAccount": {
+      "email": "YOUR_GMAIL@gmail.com",
+      "clientId": "YOUR_GOOGLE_CLIENT_ID",
+      "clientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
+      "refreshToken": "",
+      "apiKey": ""
+    },
+    "gRecaptcha": {
+      "siteKey": "",
+      "secretKey": ""
+    }
+  },
+  "dashBoard": {
+    "enable": false,
+    "expireVerifyCode": 300000,
+    "port": 3001
+  },
+  "serverUptime": {
+    "enable": false,
+    "port": 3001,
+    "socket": {
+      "enable": true,
+      "channelName": "uptime",
+      "verifyToken": ""
+    }
+  },
+  "autoRestart": {
+    "time": null,
+    "notes": "Example: 60000 (1min), 3600000 (1hr), 0 0 * * * (daily)."
+  },
+  "autoUptime": {
+    "enable": false,
+    "timeInterval": 180,
+    "url": "",
+    "notes": "Time in seconds. Recommended for uptime monitors."
+  },
+  "autoLoadScripts": {
+    "enable": false,
+    "ignoreCmds": "",
+    "ignoreEvents": "",
+    "notes": "Automatically reloads scripts if edited."
+  },
+  "autoRefreshFbstate": true,
+  "autoReloginWhenChangeAccount": false,
+  "autoRestartWhenListenMqttError": true,
+  "restartListenMqtt": {
+    "enable": true,
+    "timeRestart": 60000,
+    "delayAfterStopListening": 2000,
+    "logNoti": true,
+    "notes": "Restart listener every 1 minute."
+  },
+  "notiWhenListenMqttError": {
+    "notes": "Notification settings when MQTT stops listening.",
+    "gmail": {
+      "enable": false,
+      "emailGetNoti": ""
+    },
+    "telegram": {
+      "enable": false,
+      "botToken": "",
+      "chatId": ""
+    },
+    "discordHook": {
+      "enable": false,
+      "webhookUrl": ""
+    }
+  },
+  "hideNotiMessage": {
+    "commandNotFound": false,
+    "adminOnly": false,
+    "threadBanned": false,
+    "userBanned": false,
+    "needRoleToUseCmd": false,
+    "needRoleToUseCmdOnReply": false,
+    "needRoleToUseCmdOnReaction": false
+  },
+  "logEvents": {
+    "disableAll": false,
+    "message": true,
+    "message_reaction": true,
+    "message_unsend": true,
+    "message_reply": true,
+    "event": true,
+    "read_receipt": false,
+    "typ": false,
+    "presence": false
+  },
+  "optionsFca": {
+    "forceLogin": true,
+    "listenEvents": true,
+    "updatePresence": true,
+    "listenTyping": true,
+    "selfListen": false,
+    "selfListenEvent": true,
+    "autoReconnect": true
+  }
+}

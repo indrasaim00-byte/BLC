@@ -1,0 +1,20 @@
+ضع هنا كوكيز فيسبوك بصيغة JSON
+Put your Facebook cookies here in JSON format
+
+مثال / Example:
+[{"key":"c_user","value":"YOUR_USER_ID","domain":"facebook.com","path":"/","hostOnly":false,"creation":"2024-01-01T00:00:00.000Z","lastAccessed":"2024-01-01T00:00:00.000Z"},{"key":"xs","value":"YOUR_XS_VALUE","domain":"facebook.com","path":"/","hostOnly":false,"creation":"2024-01-01T00:00:00.000Z","lastAccessed":"2024-01-01T00:00:00.000Z"},{"key":"fr","value":"YOUR_FR_VALUE","domain":"facebook.com","path":"/","hostOnly":false,"creation":"2024-01-01T00:00:00.000Z","lastAccessed":"2024-01-01T00:00:00.000Z"},{"key":"datr","value":"YOUR_DATR_VALUE","domain":"facebook.com","path":"/","hostOnly":false,"creation":"2024-01-01T00:00:00.000Z","lastAccessed":"2024-01-01T00:00:00.000Z"},{"key":"sb","value":"YOUR_SB_VALUE","domain":"facebook.com","path":"/","hostOnly":false,"creation":"2024-01-01T00:00:00.000Z","lastAccessed":"2024-01-01T00:00:00.000Z"}]
+
+---
+
+كيفية الحصول على الكوكيز / How to get cookies:
+1. قم بتثبيت إضافة "Cookie-Editor" في المتصفح
+   Install "Cookie-Editor" extension in your browser
+   
+2. سجل الدخول إلى فيسبوك www.facebook.com
+   Login to Facebook at www.facebook.com
+   
+3. افتح الإضافة واختر "Export" ثم "Export as JSON"
+   Open the extension, click "Export" then "Export as JSON"
+   
+4. انسخ النتيجة والصقها في ملف account.txt
+   Copy the result and paste it in the account.txt file
