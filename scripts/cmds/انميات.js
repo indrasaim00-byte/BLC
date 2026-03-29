@@ -17,6 +17,27 @@ const DEFAULT_TYPES = [
   "مانهوا كورية", "أنمي إيسيكاي", "أنمي شريحة حياة"
 ];
 
+async function callGeminiWithRetry(apiKey, contents, config, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        { contents, generationConfig: config },
+        { headers: { "Content-Type": "application/json" }, timeout: 25000 }
+      );
+      return response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    } catch (err) {
+      if (err.response?.status === 429 && i < retries) {
+        const retryDelay = err.response?.data?.error?.details?.find(d => d.retryDelay)?.retryDelay;
+        const waitSec = retryDelay ? parseInt(retryDelay) : 15;
+        await new Promise(r => setTimeout(r, (waitSec + 2) * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 function getApiKey() {
   if (process.env.GROQ_API_KEY) return process.env.GROQ_API_KEY;
   if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
@@ -44,20 +65,10 @@ STATUS: (مكتمل | مستمر | متوقف)
 STUDIO: (الاستوديو المنتج إذا أنمي)
 DESCRIPTION: (وصف مختصر بالعربية في 3-4 أسطر بدون حرق أحداث)`;
 
-  const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 600,
-        thinkingConfig: { thinkingBudget: 0 }
-      }
-    },
-    { headers: { "Content-Type": "application/json" }, timeout: 20000 }
+  return callGeminiWithRetry(apiKey,
+    [{ role: "user", parts: [{ text: prompt }] }],
+    { temperature: 0.3, maxOutputTokens: 600, thinkingConfig: { thinkingBudget: 0 } }
   );
-
-  return response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 async function getRecommendation(apiKey, type) {
@@ -77,20 +88,10 @@ DESCRIPTION: (وصف مختصر بالعربية في 3-4 أسطر بدون حر
 
 مهم: لا تكرر نفس الاقتراحات. نوّع بين الأعمال المشهورة وغير المشهورة، القديمة والجديدة.`;
 
-  const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 1.2,
-        maxOutputTokens: 600,
-        thinkingConfig: { thinkingBudget: 0 }
-      }
-    },
-    { headers: { "Content-Type": "application/json" }, timeout: 20000 }
+  return callGeminiWithRetry(apiKey,
+    [{ role: "user", parts: [{ text: prompt }] }],
+    { temperature: 1.2, maxOutputTokens: 600, thinkingConfig: { thinkingBudget: 0 } }
   );
-
-  return response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 function parseResponse(text) {
@@ -166,7 +167,7 @@ function getTypeEmoji(type) {
 module.exports = {
   config: {
     name: "انميات",
-    aliases: ["انمي", "مانغا", "مانجا", "مانهوا", "anime", "manga", "manhwa", "لايت-نوفل"],
+    aliases: ["انمي", "مانغا", "مانجا", "مانهوا", "anime", "manhwa", "لايت-نوفل"],
     version: "1.0.0",
     author: "BlackBot",
     shortDescription: "اقتراح انميات ومانغا",

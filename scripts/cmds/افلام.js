@@ -12,6 +12,27 @@ const CATEGORIES = {
 
 const DEFAULT_TYPES = ["فيلم سينمائي", "مسلسل تلفزيوني", "مسلسل كوري K-Drama", "فيلم أنيميشن", "مسلسل تركي", "فيلم رعب", "مسلسل جريمة"];
 
+async function callGeminiWithRetry(apiKey, contents, config, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        { contents, generationConfig: config },
+        { headers: { "Content-Type": "application/json" }, timeout: 25000 }
+      );
+      return response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    } catch (err) {
+      if (err.response?.status === 429 && i < retries) {
+        const retryDelay = err.response?.data?.error?.details?.find(d => d.retryDelay)?.retryDelay;
+        const waitSec = retryDelay ? parseInt(retryDelay) : 15;
+        await new Promise(r => setTimeout(r, (waitSec + 2) * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 function getApiKey() {
   if (process.env.GROQ_API_KEY) return process.env.GROQ_API_KEY;
   if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
@@ -35,20 +56,10 @@ RATING: (التقييم من 10)
 EPISODES: (عدد الحلقات إذا مسلسل، أو "فيلم" إذا فيلم)
 DESCRIPTION: (وصف مختصر بالعربية في 3-4 أسطر بدون حرق أحداث)`;
 
-  const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 500,
-        thinkingConfig: { thinkingBudget: 0 }
-      }
-    },
-    { headers: { "Content-Type": "application/json" }, timeout: 20000 }
+  return callGeminiWithRetry(apiKey,
+    [{ role: "user", parts: [{ text: prompt }] }],
+    { temperature: 0.3, maxOutputTokens: 500, thinkingConfig: { thinkingBudget: 0 } }
   );
-
-  return response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 async function getRecommendation(apiKey, type) {
@@ -64,20 +75,10 @@ DESCRIPTION: (وصف مختصر بالعربية في 3 أسطر بدون حرق
 
 مهم: لا تكرر نفس الاقتراحات. اختر عمل مختلف في كل مرة. نوّع بين القديم والجديد.`;
 
-  const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 1.2,
-        maxOutputTokens: 500,
-        thinkingConfig: { thinkingBudget: 0 }
-      }
-    },
-    { headers: { "Content-Type": "application/json" }, timeout: 20000 }
+  return callGeminiWithRetry(apiKey,
+    [{ role: "user", parts: [{ text: prompt }] }],
+    { temperature: 1.2, maxOutputTokens: 500, thinkingConfig: { thinkingBudget: 0 } }
   );
-
-  return response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 function parseResponse(text) {
