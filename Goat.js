@@ -60,6 +60,15 @@ for (const pathDir of [dirConfig, dirConfigCommands]) {
         }
 }
 const config = require(dirConfig);
+// Inject Gemini key from environment at runtime.
+// Use a non-enumerable property so JSON.stringify (disk writes) never exposes the key.
+if (process.env.GOOGLE_API_KEY) {
+        Object.defineProperty(config.apiKeys, 'gemini', {
+                get: () => process.env.GOOGLE_API_KEY,
+                enumerable: false,
+                configurable: true
+        });
+}
 if (config.blackListMode?.blackListIds && Array.isArray(config.blackListMode.blackListIds))
         config.blackListMode.blackListIds = config.blackListMode.blackListIds.map(id => id.toString());
 const configCommands = require(dirConfigCommands);
@@ -187,7 +196,16 @@ const watchAndReloadConfig = (dir, type, prop, logName, afterReload) => {
 };
 
 watchAndReloadConfig(dirConfigCommands, 'change', 'configCommands', 'CONFIG COMMANDS');
-watchAndReloadConfig(dirConfig, 'change', 'config', 'CONFIG');
+watchAndReloadConfig(dirConfig, 'change', 'config', 'CONFIG', (cfg) => {
+        // Re-apply env key after config reload so apiKeys.gemini is never read from disk
+        if (process.env.GOOGLE_API_KEY) {
+                Object.defineProperty(cfg.apiKeys, 'gemini', {
+                        get: () => process.env.GOOGLE_API_KEY,
+                        enumerable: false,
+                        configurable: true
+                });
+        }
+});
 
 global.BlackBot.envGlobal = global.BlackBot.configCommands.envGlobal;
 global.BlackBot.envCommands = global.BlackBot.configCommands.envCommands;
