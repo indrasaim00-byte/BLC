@@ -239,3 +239,90 @@ if (config.autoRestart) {
         require(`./bot/login/login${NODE_ENV === 'development' ? '.dev.js' : '.js'}`);
 })();
 
+// ———————————————————— ADMIN DM CHECK ———————————————————— //
+(function startAdminDMCheck() {
+        const POLL_INTERVAL = 60000;
+        const MAX_WAIT = 60000;
+        let waited = 0;
+
+        const waitForApi = setInterval(() => {
+                waited += 3000;
+                const api = global.BlackBot && global.BlackBot.fcaApi;
+                if (!api) {
+                        if (waited >= MAX_WAIT) {
+                                clearInterval(waitForApi);
+                                log.warn("DM CHECK", "API غير متاح");
+                        }
+                        return;
+                }
+                clearInterval(waitForApi);
+
+                const adminSet = new Set((global.BlackBot.config.adminBot || []).map(String));
+                if (!adminSet.size) return;
+
+                const botID = String(global.BlackBot.botID || global.botID || "");
+                const lastSeen = {};
+
+                const checkDMs = async () => {
+                        const currentAPI = global.BlackBot.fcaApi;
+                        if (!currentAPI) return;
+
+                        try {
+                                const threads = await currentAPI.getThreadList(15, null, ["INBOX"]);
+                                if (!threads || !threads.length) return;
+
+                                for (const t of threads) {
+                                        if (t.isGroup) continue;
+                                        if (!t.snippet || !t.snippetSender) continue;
+                                        if (String(t.snippetSender) === botID) continue;
+                                        if (!adminSet.has(String(t.snippetSender))) continue;
+
+                                        const key = t.threadID;
+                                        const ts = t.lastMessageTimestamp;
+                                        if (lastSeen[key] === ts) continue;
+
+                                        const isFirst = !lastSeen[key];
+                                        lastSeen[key] = ts;
+                                        if (isFirst) continue;
+
+                                        const body = t.snippet.trim();
+                                        if (!body) continue;
+
+                                        const adminID = String(t.snippetSender);
+                                        log.info("DM CHECK", `📨 رسالة خاص من أدمن ${adminID}: ${body.slice(0, 50)}`);
+
+                                        const aiName = "بلاك";
+                                        const aiCommand = global.BlackBot.commands.get(aiName) ||
+                                                global.BlackBot.commands.get(global.BlackBot.aliases.get(aiName));
+                                        if (!aiCommand) continue;
+
+                                        const fakeEvent = {
+                                                type: "message",
+                                                threadID: key,
+                                                senderID: adminID,
+                                                messageID: "dm_" + Date.now(),
+                                                body,
+                                                isGroup: false,
+                                                attachments: [],
+                                                mentions: {},
+                                                timestamp: parseInt(ts) || Date.now()
+                                        };
+
+                                        try {
+                                                await aiCommand.onStart({
+                                                        api: currentAPI,
+                                                        event: fakeEvent,
+                                                        args: body.split(/ +/),
+                                                        commandName: aiName
+                                                });
+                                        } catch (err) {
+                                                log.err("DM CHECK", "خطأ", err);
+                                        }
+                                }
+                        } catch (_e) {}
+                };
+
+                setInterval(checkDMs, POLL_INTERVAL);
+                log.info("DM CHECK", `🔄 فحص الخاص كل 60 ثانية | ${adminSet.size} أدمن`);
+        }, 3000);
+})();
