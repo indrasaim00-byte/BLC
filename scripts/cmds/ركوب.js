@@ -81,6 +81,35 @@ module.exports = {
                         timeArg = args[1];
                 }
 
+                if (targetID && /facebook\.com/.test(targetID)) {
+                        let extracted = null;
+                        const idMatch = targetID.match(/profile\.php\?id=(\d+)/);
+                        if (idMatch) {
+                                extracted = idMatch[1];
+                        } else {
+                                const nameMatch = targetID.match(/facebook\.com\/([a-zA-Z0-9_.]+)/);
+                                if (nameMatch && nameMatch[1] !== "profile.php") {
+                                        extracted = nameMatch[1];
+                                }
+                        }
+                        if (!extracted) {
+                                return api.sendMessage(getLang("invalidID"), event.threadID, event.messageID);
+                        }
+                        if (!/^\d+$/.test(extracted)) {
+                                try {
+                                        const users = await api.getUserID(extracted);
+                                        if (users && users.length > 0) {
+                                                extracted = users[0].userID;
+                                        } else {
+                                                return api.sendMessage("⚠️ | لم يتم العثور على المستخدم: " + extracted, event.threadID, event.messageID);
+                                        }
+                                } catch (e) {
+                                        return api.sendMessage("⚠️ | خطأ في البحث عن المستخدم: " + (e.message || e), event.threadID, event.messageID);
+                                }
+                        }
+                        targetID = extracted;
+                }
+
                 if (!targetID || !/^\d+$/.test(targetID)) {
                         return api.sendMessage(getLang("invalidID"), event.threadID, event.messageID);
                 }
