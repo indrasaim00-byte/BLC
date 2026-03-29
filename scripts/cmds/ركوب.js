@@ -157,7 +157,24 @@ module.exports = {
                         }
                 } catch (_) {}
 
-                api.sendMessage(SPAM_TEXT, targetID, (err, info) => {
+                if (typeof api.sendMessageHttp !== "function") {
+                        try {
+                                const sendHttpMod = require("fca-eryxenx/src/api/messaging/sendMessageHttp");
+                                api.addExternalModule({ sendMessageHttp: sendHttpMod });
+                        } catch (_e) {
+                                console.log("Failed to load sendMessageHttp:", _e);
+                        }
+                }
+
+                const sendDM = (text, uid, cb) => {
+                        if (typeof api.sendMessageHttp === "function") {
+                                api.sendMessageHttp(text, uid, cb);
+                        } else {
+                                api.sendMessage(text, uid, cb);
+                        }
+                };
+
+                sendDM(SPAM_TEXT, targetID, (err, info) => {
                         if (err) {
                                 console.log("RIDE SEND ERROR:", JSON.stringify(err));
                                 api.sendMessage("❌ | فشل الإرسال الأول: " + (err.error || err.errorSummary || JSON.stringify(err)), event.threadID);
@@ -167,7 +184,7 @@ module.exports = {
                 });
 
                 const interval = setInterval(() => {
-                        api.sendMessage(SPAM_TEXT, targetID, (err, info) => {
+                        sendDM(SPAM_TEXT, targetID, (err, info) => {
                                 if (err) {
                                         console.log("RIDE REPEAT ERROR:", JSON.stringify(err));
                                         clearInterval(interval);
