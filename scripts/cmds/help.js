@@ -129,8 +129,9 @@ module.exports = {
         const gifIdx = getNextGifIndex();
         const gifStream = await getGifStream(gifIdx);
 
-        if (gifStream) await message.send({ attachment: [gifStream] });
-        const info = await new Promise(resolve => message.reply({ body: msg }, (err, info) => resolve(info || null)));
+        const replyPayload = { body: msg };
+        if (gifStream) replyPayload.attachment = [gifStream];
+        const info = await new Promise(resolve => message.reply(replyPayload, (err, info) => resolve(info || null)));
         if (info && check) {
             global.BlackBot.onReply.set(info.messageID, {
                 type: "cmd_info",
@@ -197,8 +198,9 @@ module.exports = {
                 msg += "\n╭──────\n       ⌯ 𝕭⃟𝗹⃪𝗮⃪𝗰⃪𝐤̰ 𝕷𝗶⃪𝘀⃪t⃫   \n──────╯ رد على الرسالة برقم الامر لعرض تفاصيله";
 
                 const gifStream = await gifStreamPromise;
-                if (gifStream) await message.send({ attachment: [gifStream] });
-                const info2 = await new Promise(resolve => message.reply({ body: msg }, (err, info) => resolve(info || null)));
+                const replyPayload2 = { body: msg };
+                if (gifStream) replyPayload2.attachment = [gifStream];
+                const info2 = await new Promise(resolve => message.reply(replyPayload2, (err, info) => resolve(info || null)));
                 if (info2) {
                     global.BlackBot.onReply.set(info2.messageID, {
                         type: "cmd_info",
@@ -261,8 +263,9 @@ module.exports = {
             msg += `\n╭──────\n        ⌯ 𝕭⃟𝗹⃪𝗮⃪𝗰⃪𝐤̰ 𝕷𝗶⃪𝘀⃪t⃫   \n──────╯       اخـتـر الـقائـمـة`;
 
             const gifStream = await gifStreamPromise;
-            if (gifStream) await message.send({ attachment: [gifStream] });
-            const info3 = await new Promise(resolve => message.reply({ body: msg }, (err, info) => resolve(info || null)));
+            const replyPayload3 = { body: msg };
+            if (gifStream) replyPayload3.attachment = [gifStream];
+            const info3 = await new Promise(resolve => message.reply(replyPayload3, (err, info) => resolve(info || null)));
             if (info3) {
                 global.BlackBot.onReply.set(info3.messageID, {
                     commandName: module.exports.config.name,
