@@ -159,14 +159,41 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
                 let threadData = global.db.allThreadData.find(t => t.threadID == threadID);
                 let userData = global.db.allUserData.find(u => u.userID == senderID);
 
-                if (!userData && !isNaN(senderID))
-                        userData = await usersData.create(senderID);
+                if (!userData && !isNaN(senderID)) {
+                        try {
+                                userData = await usersData.create(senderID);
+                        } catch (e) {
+                                userData = { userID: senderID, name: senderID, banned: { status: false }, data: {} };
+                        }
+                }
 
                 if (!threadData && !isNaN(threadID)) {
-                        if (global.temp.createThreadDataError.includes(threadID))
-                                return;
-                        threadData = await threadsData.create(threadID);
-                        global.db.receivedTheFirstMessage[threadID] = true;
+                        const isDM = isGroup === false || event.senderID == threadID;
+                        if (global.temp.createThreadDataError.includes(threadID)) {
+                                if (!isDM) return;
+                                // DM fallback: create minimal thread data
+                                threadData = {
+                                        threadID,
+                                        adminIDs: [],
+                                        banned: { status: false },
+                                        data: {},
+                                        settings: { hideNotiMessage: {} }
+                                };
+                        } else {
+                                try {
+                                        threadData = await threadsData.create(threadID);
+                                        global.db.receivedTheFirstMessage[threadID] = true;
+                                } catch (e) {
+                                        if (!isDM) return;
+                                        threadData = {
+                                                threadID,
+                                                adminIDs: [],
+                                                banned: { status: false },
+                                                data: {},
+                                                settings: { hideNotiMessage: {} }
+                                        };
+                                }
+                        }
                 }
                 else {
                         if (
