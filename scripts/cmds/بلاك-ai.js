@@ -306,6 +306,7 @@ module.exports = {
 
   onReply: async function ({ api, event, Reply }) {
     const { threadID, senderID, messageID } = event;
+    if (event.senderID !== Reply.author) return;
     const input = (event.body || "").trim();
     if (!input) return;
 
