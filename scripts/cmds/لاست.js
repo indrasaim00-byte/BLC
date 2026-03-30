@@ -77,48 +77,126 @@ async function sendSignatureAndAccept(api, targetThreadID, senderID) {
   } catch (e) {}
 }
 
+async function getGroupsList(api) {
+  let activeGroups = [], pendingGroups = [], otherGroups = [];
+  try {
+    const inbox = await api.getThreadList(100, null, ["INBOX"]);
+    activeGroups = (inbox || []).filter(t => t.isGroup).map(g => ({ ...g, type: "active" }));
+  } catch (e) {}
+  try {
+    const pending = await api.getThreadList(100, null, ["PENDING"]);
+    pendingGroups = (pending || []).filter(t => t.isGroup).map(g => ({ ...g, type: "pending" }));
+  } catch (e) {}
+  try {
+    const other = await api.getThreadList(100, null, ["OTHER"]);
+    otherGroups = (other || []).filter(t => t.isGroup).map(g => ({ ...g, type: "other" }));
+  } catch (e) {}
+  activeGroups.sort((a, b) => (b.messageCount || 0) - (a.messageCount || 0));
+  return [...activeGroups, ...pendingGroups, ...otherGroups];
+}
+
+function buildAddListMsg(allGroups, targetLabel) {
+  const typeLabel = { active: "نشطة", pending: "معلقة", other: "أخرى" };
+  let msg = `◈  ⌯ ⟅𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ 𖥻 ❦៹ .˖ִ.◈\n`;
+  msg += `   〖 ✦ قائمة المجموعات ✦ 〗\n`;
+  msg += `━━━━━━━━━━\n`;
+  if (allGroups.length === 0) {
+    msg += `   ◆ لا توجد مجموعات\n`;
+  } else {
+    allGroups.forEach((g, i) => {
+      msg += `\n 「${i + 1}」↞〔${g.name || "بدون اسم"}〕 [${typeLabel[g.type]}]`;
+    });
+    msg += `\n 「الكل」↞ إضافة لجميع المجموعات`;
+  }
+  msg += `\n\n━━━━━━━━━━\n`;
+  msg += `اختر رقم المجموعة لإضافة ${targetLabel} إليها\nأو اكتب الكل للإضافة لجميع المجموعات`;
+  return msg;
+}
+
 module.exports = {
   config: {
     name: "لاست",
     aliases: ["last", "allbox"],
-    version: "3.0",
+    version: "3.1",
     author: "Saint",
     role: 2,
     shortDescription: "قائمة المجموعات والتحكم عن بعد",
     category: "owner",
-    guide: "{pn}",
+    guide: "{pn} | {pn} ضيفه | {pn} ضيفني",
     countDown: 10
   },
 
-  onStart: async function ({ api, event, commandName }) {
+  onStart: async function ({ api, event, commandName, args }) {
     const { threadID, messageID, senderID } = event;
 
-    let activeGroups = [], pendingGroups = [], otherGroups = [];
+    // ── ضيفه ──
+    if (args[0] === "ضيفه") {
+      if (!event.messageReply) {
+        return api.sendMessage("〔!〕 يجب الرد على رسالة شخص ما لاستخدام هذا الأمر.", threadID, null, messageID);
+      }
+      const targetID = event.messageReply.senderID;
+      let targetName = "الشخص المحدد";
+      try {
+        const info = await api.getUserInfo(targetID);
+        if (info && info[targetID]) targetName = info[targetID].name;
+      } catch (e) {}
 
-    try {
-      const inbox = await api.getThreadList(100, null, ["INBOX"]);
-      activeGroups = (inbox || []).filter(t => t.isGroup).map(g => ({ ...g, type: "active" }));
-    } catch (e) {}
+      const allGroups = await getGroupsList(api);
+      if (allGroups.length === 0) {
+        return api.sendMessage("〔✗〕 لا توجد مجموعات.", threadID);
+      }
 
-    try {
-      const pending = await api.getThreadList(100, null, ["PENDING"]);
-      pendingGroups = (pending || []).filter(t => t.isGroup).map(g => ({ ...g, type: "pending" }));
-    } catch (e) {}
+      const msg = buildAddListMsg(allGroups, `〔 ${targetName} 〕`);
+      return api.sendMessage(msg, threadID, (err, info) => {
+        if (!info) return;
+        global.BlackBot.onReply.set(info.messageID, {
+          commandName,
+          messageID: info.messageID,
+          author: senderID,
+          allGroups,
+          mode: "ضيفه",
+          targetID,
+          targetName,
+          delete: () => global.BlackBot.onReply.delete(info.messageID)
+        });
+      }, messageID);
+    }
 
-    try {
-      const other = await api.getThreadList(100, null, ["OTHER"]);
-      otherGroups = (other || []).filter(t => t.isGroup).map(g => ({ ...g, type: "other" }));
-    } catch (e) {}
+    // ── ضيفني ──
+    if (args[0] === "ضيفني") {
+      const targetID = senderID;
+      let targetName = "أنت";
+      try {
+        const info = await api.getUserInfo(targetID);
+        if (info && info[targetID]) targetName = info[targetID].name;
+      } catch (e) {}
 
-    activeGroups.sort((a, b) => (b.messageCount || 0) - (a.messageCount || 0));
+      const allGroups = await getGroupsList(api);
+      if (allGroups.length === 0) {
+        return api.sendMessage("〔✗〕 لا توجد مجموعات.", threadID);
+      }
 
-    // قائمة موحدة مرقمة
-    const allGroups = [...activeGroups, ...pendingGroups, ...otherGroups];
+      const msg = buildAddListMsg(allGroups, `〔 ${targetName} 〕`);
+      return api.sendMessage(msg, threadID, (err, info) => {
+        if (!info) return;
+        global.BlackBot.onReply.set(info.messageID, {
+          commandName,
+          messageID: info.messageID,
+          author: senderID,
+          allGroups,
+          mode: "ضيفني",
+          targetID,
+          targetName,
+          delete: () => global.BlackBot.onReply.delete(info.messageID)
+        });
+      }, messageID);
+    }
 
+    // ── القائمة العادية ──
+    const allGroups = await getGroupsList(api);
     const typeLabel = { active: "نشطة", pending: "معلقة", other: "أخرى" };
 
-    let msg = "";
-    msg += `◈  ⌯ ⟅𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ 𖥻 ❦៹ .˖ִ.◈\n`;
+    let msg = `◈  ⌯ ⟅𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ 𖥻 ❦៹ .˖ִ.◈\n`;
     msg += `   〖 ✦ قائمة المجموعات ✦ 〗\n`;
     msg += `━━━━━━━━━━\n`;
 
@@ -136,7 +214,10 @@ module.exports = {
     msg += ` ◈ [رقم] خروج  ↞ مغادرة المجموعة\n`;
     msg += ` ◈ [رقم] قبول  ↞ قبول طلب الانضمام\n`;
     msg += ` ◈ [رقم] اوامر ↞ قائمة الأوامر\n`;
-    msg += ` ◈ [رقم] [أمر] ↞ تنفيذ أمر عن بعد`;
+    msg += ` ◈ [رقم] [أمر] ↞ تنفيذ أمر عن بعد\n`;
+    msg += `━━━━━━━━━━\n`;
+    msg += ` ◈ .لاست ضيفه  ↞ رد على رسالة شخص لإضافته\n`;
+    msg += ` ◈ .لاست ضيفني ↞ إضافتك لمجموعة`;
 
     api.sendMessage(msg, threadID, (err, info) => {
       if (!info) return;
@@ -159,6 +240,51 @@ module.exports = {
 
     Reply.delete();
 
+    // ── معالجة ضيفه / ضيفني ──
+    if (Reply.mode === "ضيفه" || Reply.mode === "ضيفني") {
+      const { targetID, targetName } = Reply;
+      const activeGroups = allGroups.filter(g => g.type === "active");
+
+      if (body === "الكل") {
+        if (activeGroups.length === 0) {
+          return api.sendMessage("〔✗〕 لا توجد مجموعات نشطة للإضافة.", event.threadID);
+        }
+        let success = 0, fail = 0;
+        for (const g of activeGroups) {
+          try {
+            await api.addUserToGroup(targetID, g.threadID);
+            success++;
+          } catch (e) {
+            fail++;
+          }
+        }
+        const label = Reply.mode === "ضيفه" ? `〔 ${targetName} 〕` : "أنت";
+        return api.sendMessage(
+          `〔✓〕 تمت إضافة ${label} إلى ${success} مجموعة بنجاح` +
+          (fail > 0 ? `\n〔✗〕 فشلت الإضافة في ${fail} مجموعة` : ""),
+          event.threadID
+        );
+      }
+
+      const num = parseInt(body);
+      if (isNaN(num) || num < 1 || num > allGroups.length) {
+        return api.sendMessage("〔✗〕 رقم غير صالح. أرسل رقم المجموعة أو كلمة الكل", event.threadID);
+      }
+
+      const targetGroup = allGroups[num - 1];
+      const label = Reply.mode === "ضيفه" ? `〔 ${targetName} 〕` : "أنت";
+      try {
+        await api.addUserToGroup(targetID, targetGroup.threadID);
+        return api.sendMessage(
+          `〔✓〕 تمت إضافة ${label} إلى مجموعة 〔 ${targetGroup.name || "بدون اسم"} 〕 بنجاح`,
+          event.threadID
+        );
+      } catch (e) {
+        return api.sendMessage(`〔✗〕 فشلت الإضافة: ${e.message}`, event.threadID);
+      }
+    }
+
+    // ── معالجة القائمة العادية ──
     const match = body.match(/^(\d+)\s+(.+)$/);
     if (!match) {
       return api.sendMessage("〔!〕 صيغة غير معروفة. مثال: 1 خروج | 1 قبول | 1 اوامر | 1 ping", event.threadID);
