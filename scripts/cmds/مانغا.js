@@ -94,6 +94,43 @@ async function searchMangaDex(title) {
   } catch (_) { return null; }
 }
 
+async function searchMangaDexAccurate(titles) {
+  for (const t of titles) {
+    if (!t) continue;
+    try {
+      const res = await axios.get(`${MANGADEX}/manga`, {
+        params: { title: t, limit: 5 },
+        timeout: 10000
+      });
+      const results = res.data?.data || [];
+      const tLow = t.toLowerCase();
+      const exact = results.find(m => {
+        const attrs = m.attributes;
+        const allTitles = [
+          ...(attrs.title ? Object.values(attrs.title) : []),
+          ...(attrs.altTitles || []).flatMap(obj => Object.values(obj))
+        ].map(s => s?.toLowerCase());
+        return allTitles.some(at => at === tLow || at?.includes(tLow) || tLow.includes(at));
+      });
+      if (exact) return exact.id;
+      if (results[0]) return results[0].id;
+    } catch (_) {}
+  }
+  return null;
+}
+
+async function getAniListTitle(query) {
+  try {
+    const res = await axios.post(ANILIST, {
+      query: SEARCH_QUERY,
+      variables: { search: query }
+    }, { headers: { "Content-Type": "application/json" }, timeout: 12000 });
+    const m = res.data?.data?.Page?.media?.[0];
+    if (!m) return null;
+    return { english: m.title.english, romaji: m.title.romaji, native: m.title.native };
+  } catch (_) { return null; }
+}
+
 async function getAvailableChapters(mdId, limit = 10) {
   try {
     const res = await axios.get(`${MANGADEX}/chapter`, {
@@ -257,7 +294,11 @@ async function handleInfoRequest(message, api, query, unsendWaiting) {
 }
 
 async function handleChapterRequest(message, api, query, chapterNum, unsendWaiting) {
-  const mdId = await searchMangaDex(query);
+  const aniTitle = await getAniListTitle(query);
+  const searchNames = aniTitle
+    ? [aniTitle.english, aniTitle.romaji, aniTitle.native, query]
+    : [query];
+  const mdId = await searchMangaDexAccurate(searchNames);
   if (!mdId) {
     unsendWaiting();
     return message.reply(`❌ لم أجد "${query}" على MangaDex.\nجرب كتابة الاسم بالإنجليزي.`);

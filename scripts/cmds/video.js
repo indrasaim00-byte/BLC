@@ -89,8 +89,16 @@ module.exports = {
         `\n✎﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏\n` +
         `↞ ⌯ 𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ ⪼`;
 
-      message.reply({ body, attachment: fs.createReadStream(downloaded.filePath) }, () => {
+      const durationSec = chosenVideo.seconds || 0;
+      const deleteAfterMs = (durationSec + 120) * 1000;
+
+      message.reply({ body, attachment: fs.createReadStream(downloaded.filePath) }, (err, info) => {
         try { fs.unlinkSync(downloaded.filePath); } catch (_) {}
+        if (info?.messageID) {
+          setTimeout(() => {
+            api.unsendMessage(info.messageID).catch(() => {});
+          }, deleteAfterMs);
+        }
       });
 
     } catch (err) {
