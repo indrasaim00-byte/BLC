@@ -134,7 +134,7 @@ async function getAniListTitle(query) {
 async function getAvailableChapters(mdId, limit = 10) {
   try {
     const res = await axios.get(`${MANGADEX}/chapter`, {
-      params: { manga: mdId, "order[chapter]": "desc", limit },
+      params: { manga: mdId, "translatedLanguage[]": "ar", "order[chapter]": "desc", limit },
       timeout: 10000
     });
     return res.data?.data || [];
@@ -144,18 +144,15 @@ async function getAvailableChapters(mdId, limit = 10) {
 async function findChapter(mdId, chapterNum) {
   try {
     const res = await axios.get(`${MANGADEX}/chapter`, {
-      params: { manga: mdId, chapter: chapterNum, "order[chapter]": "asc", limit: 20 },
+      params: { manga: mdId, chapter: chapterNum, "translatedLanguage[]": "ar", "order[chapter]": "asc", limit: 20 },
       timeout: 10000
     });
     const chapters = (res.data?.data || []).filter(c => {
       const ch = c.attributes?.chapter;
       return ch && String(parseFloat(ch)) === String(parseFloat(chapterNum));
     });
-    if (!chapters.length) return null;
-    return chapters.find(c => c.attributes?.translatedLanguage === "ar")
-      || chapters.find(c => c.attributes?.translatedLanguage === "en")
-      || chapters.find(c => ["fr", "es", "es-la", "it", "pt-br"].includes(c.attributes?.translatedLanguage))
-      || chapters[0];
+    if (chapters.length) return chapters[0];
+    return null;
   } catch (_) { return null; }
 }
 
@@ -326,10 +323,12 @@ async function handleChapterRequest(message, api, query, chapterNum, unsendWaiti
       .map(n => parseFloat(n));
     const unique = [...new Set(nums)].sort((a, b) => b - a).slice(0, 15);
     unsendWaiting();
-    let msg = `❌ الفصل ${chapterNum} غير متاح لـ "${mangaTitle}".\n`;
+    let msg = `❌ الفصل ${chapterNum} غير متاح بالعربي لـ "${mangaTitle}".\n`;
     if (unique.length) {
-      msg += `\n📚 الفصول المتاحة:\n` + unique.map(n => `  📄 فصل ${n}`).join("\n");
+      msg += `\n📚 الفصول المتاحة بالعربي:\n` + unique.map(n => `  📄 فصل ${n}`).join("\n");
       msg += `\n\n💡 جرب: .مانغا ${query} فصل ${unique[unique.length - 1]}`;
+    } else {
+      msg += `\n⚠ لا توجد فصول مترجمة بالعربي لهذه المانغا على MangaDex.`;
     }
     return message.reply(msg);
   }
