@@ -167,7 +167,7 @@ function getTypeEmoji(type) {
 module.exports = {
   config: {
     name: "انميات",
-    aliases: ["انمي", "مانغا", "مانجا", "مانهوا", "anime", "manhwa", "لايت-نوفل"],
+    aliases: ["انمي", "anime", "لايت-نوفل"],
     version: "1.0.0",
     author: "BlackBot",
     shortDescription: "اقتراح انميات ومانغا",
