@@ -55,11 +55,15 @@ async function downloadImage(url, filePath) {
   } catch (_) { return null; }
 }
 
+function sendMsg(message, body) {
+  return new Promise(resolve => message.reply(body, (err, info) => resolve(info?.messageID || null)));
+}
+
 module.exports = {
   config: {
     name: "مانغا",
     aliases: ["manga", "مانهوا", "مانجا", "manhua", "manhwa"],
-    version: "2.0",
+    version: "2.1",
     author: "Saint",
     countDown: 5,
     role: 0,
@@ -73,7 +77,11 @@ module.exports = {
     const query = args.join(" ").trim();
     if (!query) return message.reply("🔍 اكتب اسم المانغا أو المانهوا بعد الأمر.\nمثال: .مانغا one piece");
 
-    const waiting = await message.reply("╭──────────────╮\n   🔍 جاري البحث...\n╰──────────────╯");
+    const waitingID = await sendMsg(message, "╭──────────────╮\n   🔍 جاري البحث...\n╰──────────────╯");
+
+    function unsendWaiting() {
+      if (waitingID) api.unsendMessage(waitingID).catch(() => {});
+    }
 
     try {
       const res = await axios.post(ANILIST, {
@@ -83,7 +91,7 @@ module.exports = {
 
       const list = res.data?.data?.Page?.media;
       if (!list?.length) {
-        api.unsendMessage(waiting.messageID).catch(() => {});
+        unsendWaiting();
         return message.reply(`❌ لم أجد نتائج لـ "${query}"\nجرب كتابة الاسم بالإنجليزي للحصول على نتائج أدق.`);
       }
 
@@ -117,9 +125,8 @@ module.exports = {
         `\n✎﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏﹏\n` +
         `↞ ⌯ 𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ ⪼`;
 
-      api.unsendMessage(waiting.messageID).catch(() => {});
-
-      await message.reply(body);
+      unsendWaiting();
+      await sendMsg(message, body);
 
       if (m.coverImage?.large) {
         const imgPath = path.join(cacheDir, `manga_${m.id}.jpg`);
@@ -133,7 +140,7 @@ module.exports = {
 
     } catch (err) {
       console.error("[مانغا]", err.message);
-      api.unsendMessage(waiting.messageID).catch(() => {});
+      unsendWaiting();
       message.reply("❌ حدث خطأ أثناء البحث، جرب مرة أخرى.");
     }
   }
