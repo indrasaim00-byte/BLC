@@ -362,9 +362,10 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
                                                 }
                                         }
                                 }
-                                if (closestCommand && minDistance === 1) {
-                                        message.reply(`❓ هل تقصد: .${closestCommand} ؟`);
-                                        return;
+                                const noAutoCorrect = ["نيم"];
+                                if (closestCommand && minDistance === 1 && !noAutoCorrect.includes(closestCommand)) {
+                                        command = BlackBot.commands.get(closestCommand);
+                                        commandName = closestCommand;
                                 } else {
                                         // Route the full text after prefix to AI command
                                         const aiName = "بلاك";
