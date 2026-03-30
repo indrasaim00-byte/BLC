@@ -21,16 +21,18 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node index.js"
-
 [workflows.workflow.metadata]
 outputType = "console"
 
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node index.js"
+waitForPort = 3000
+
 [[ports]]
 localPort = 3000
-externalPort = 80
+externalPort = 3000
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "vm"
+run = ["node", "index.js"]
