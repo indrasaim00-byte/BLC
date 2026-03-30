@@ -363,9 +363,8 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
                                         }
                                 }
                                 if (closestCommand && minDistance === 1) {
-                                        // Auto-execute on very close typo
-                                        command = BlackBot.commands.get(closestCommand);
-                                        commandName = closestCommand;
+                                        message.reply(`❓ هل تقصد: .${closestCommand} ؟`);
+                                        return;
                                 } else {
                                         // Route the full text after prefix to AI command
                                         const aiName = "بلاك";
