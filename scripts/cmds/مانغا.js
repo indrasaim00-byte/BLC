@@ -340,7 +340,7 @@ async function handleChapterRequest(message, api, query, chapterNum, unsendWaiti
     return message.reply(`❌ تعذر تحميل صفحات الفصل ${chapterNum}.`);
   }
 
-  const langMap = { ar: "🇸🇦 عربي", en: "🇬🇧 إنجليزي", ja: "🇯🇵 ياباني", ko: "🇰🇷 كوري", zh: "🇨🇳 صيني", es: "🇪🇸 إسباني", "es-la": "🇪🇸 إسباني", fr: "🇫🇷 فرنسي", it: "🇮🇹 إيطالي" };
+  const langMap = { ar: "عربي", en: "إنجليزي", ja: "ياباني", ko: "كوري", zh: "صيني", "zh-hk": "صيني", es: "إسباني", "es-la": "إسباني", fr: "فرنسي", it: "إيطالي", pt: "برتغالي", "pt-br": "برتغالي", de: "ألماني", ru: "روسي", tr: "تركي", pl: "بولندي", th: "تايلندي", vi: "فيتنامي", id: "إندونيسي", ms: "ماليزي", hi: "هندي", uk: "أوكراني" };
   const langLabel = langMap[chapter.attributes?.translatedLanguage] || chapter.attributes?.translatedLanguage || "غير معروف";
 
   unsendWaiting();
