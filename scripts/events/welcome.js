@@ -61,23 +61,17 @@ module.exports = {
           "https://j.top4top.io/p_3504vu3gk0.gif"
         ];
 
-        const welcomeBody = `━━━━━━━━━━━━━━━━━━━
-◈ 𝗕⃪𝗹𝗮𝗰⃪𝗸 : 𝗠⃪𝗮⃪𝗵⃪𝗼𝗿𝗮⃪
-
-⚙ بريفكس البوت : .
-✎ أرسل .الاوامر لعرض جميع الأوامر
-
-↞ يلا نخلي الجروب أحلى مع بعض!
-━━━━━━━━━━━━━━━━━━━`;
-
         const randomGif = botGifs[Math.floor(Math.random() * botGifs.length)];
-
-        await message.send({ body: welcomeBody });
 
         try {
           const gifResponse = await axios({ method: "GET", url: randomGif, responseType: "stream", timeout: 15000 });
-          await message.send({ attachment: gifResponse.data });
-        } catch (e) {}
+          await message.send({
+            body: "◈  ⌯ ⟅𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ 𖥻 ❦៹ .˖ִ.◈",
+            attachment: gifResponse.data
+          });
+        } catch (e) {
+          await message.send("◈  ⌯ ⟅𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ 𖥻 ❦៹ .˖ִ.◈");
+        }
 
         return;
       }
