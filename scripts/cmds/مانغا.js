@@ -77,7 +77,7 @@ module.exports = {
     const query = args.join(" ").trim();
     if (!query) return message.reply("🔍 اكتب اسم المانغا أو المانهوا بعد الأمر.\nمثال: .مانغا one piece");
 
-    const waitingID = await sendMsg(message, "╭──────────────╮\n   🔍 جاري البحث...\n╰──────────────╯");
+    const waitingID = await sendMsg(message, "◈ ↞جاري البحث..〔 ! 〕\n◈ 𝗕⃪𝗹𝗮𝗰⃪𝗸 : 𝗠⃪𝗮⃪𝗵⃪𝗼𝗿𝗮⃪\n━━━━━━━━━━━━━");
 
     function unsendWaiting() {
       if (waitingID) api.unsendMessage(waitingID).catch(() => {});
