@@ -41,10 +41,9 @@ module.exports = {
       const userID = user.userFbId;
       const botID = api.getCurrentUserID();
 
-      // إذا تمت إضافة البوت
       if (userID == botID) {
-        if (nickNameBot)
-          await api.changeNickname(nickNameBot, threadID, botID);
+        const botNick = "𓆩⚝𓆪𝕭𝖑𝖆𝖈𝖐𓆩⚝𓆪";
+        try { await api.changeNickname(botNick, threadID, botID); } catch (e) {}
 
         const botGifs = [
           "https://h.top4top.io/p_3677567ew0.gif",
@@ -62,17 +61,25 @@ module.exports = {
           "https://j.top4top.io/p_3504vu3gk0.gif"
         ];
 
+        const welcomeBody = `━━━━━━━━━━━━━━━━━━━
+◈ 𝗕⃪𝗹𝗮𝗰⃪𝗸 : 𝗠⃪𝗮⃪𝗵⃪𝗼𝗿𝗮⃪
+
+⚙ بريفكس البوت : .
+✎ أرسل .الاوامر لعرض جميع الأوامر
+
+↞ يلا نخلي الجروب أحلى مع بعض!
+━━━━━━━━━━━━━━━━━━━`;
+
         const randomGif = botGifs[Math.floor(Math.random() * botGifs.length)];
+
+        await message.send({ body: welcomeBody });
 
         try {
           const gifResponse = await axios({ method: "GET", url: randomGif, responseType: "stream", timeout: 15000 });
-          return await message.send({
-            body: "◈  ⌯ ⟅𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ 𖥻 ❦៹ .˖ִ.◈",
-            attachment: gifResponse.data
-          });
-        } catch (e) {
-          return await message.send("◈  ⌯ ⟅𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ 𖥻 ❦៹ .˖ִ.◈");
-        }
+          await message.send({ attachment: gifResponse.data });
+        } catch (e) {}
+
+        return;
       }
 
       // إذا كان مستخدماً جديداً
