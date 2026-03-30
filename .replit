@@ -36,4 +36,3 @@ externalPort = 3000
 [deployment]
 deploymentTarget = "vm"
 run = ["node", "index.js"]
-build = ["sh", "-c", "CTRL + K"]
