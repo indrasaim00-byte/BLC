@@ -2,8 +2,8 @@ const pendingReverts = new Map();
 const lastRevertTime = new Map();
 const isReverting = new Map();
 
-const DEBOUNCE_MS = 1200;
-const MIN_INTERVAL_MS = 4000;
+const DEBOUNCE_MS = 1000;
+const MIN_INTERVAL_MS = 1500;
 const MAX_RETRIES = 5;
 const TITLE_TIMEOUT_MS = 10000;
 
