@@ -204,27 +204,41 @@ async function callAI(history, apiKey, senderID) {
   const fullPrompt = SYSTEM_PROMPT + '\n\n' + userCtx;
 
   const attempts = [
-    { version: "v1beta", model: "gemini-2.0-flash" },
-    { version: "v1beta", model: "gemini-2.0-flash-lite" },
-    { version: "v1",     model: "gemini-1.5-flash" },
-    { version: "v1beta", model: "gemini-1.5-flash-latest" },
-    { version: "v1beta", model: "gemini-1.5-flash-8b" },
-    { version: "v1beta", model: "gemini-pro" },
+    { version: "v1beta", model: "gemini-2.0-flash",       sysMode: "field" },
+    { version: "v1beta", model: "gemini-2.0-flash-lite",  sysMode: "field" },
+    { version: "v1",     model: "gemini-1.5-flash",        sysMode: "inject" },
+    { version: "v1",     model: "gemini-1.5-flash-001",    sysMode: "inject" },
+    { version: "v1",     model: "gemini-1.5-flash-002",    sysMode: "inject" },
+    { version: "v1beta", model: "gemini-1.5-flash-latest", sysMode: "field" },
+    { version: "v1beta", model: "gemini-1.5-flash-8b",     sysMode: "field" },
+    { version: "v1beta", model: "gemini-pro",              sysMode: "field" },
   ];
   let lastErr;
 
-  for (const { version, model } of attempts) {
+  for (const { version, model, sysMode } of attempts) {
     try {
-      const response = await axios.post(
-        `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
-        {
+      let body;
+      if (sysMode === "inject") {
+        const contentsWithSystem = [
+          { role: "user",  parts: [{ text: fullPrompt }] },
+          { role: "model", parts: [{ text: "مفهوم، سأتصرف وفق هذه التعليمات." }] },
+          ...history
+        ];
+        body = {
+          contents: contentsWithSystem,
+          generationConfig: { temperature: 0.85, maxOutputTokens: 300 }
+        };
+      } else {
+        body = {
           system_instruction: { parts: [{ text: fullPrompt }] },
           contents: history,
-          generationConfig: {
-            temperature: 0.85,
-            maxOutputTokens: 300
-          }
-        },
+          generationConfig: { temperature: 0.85, maxOutputTokens: 300 }
+        };
+      }
+
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`,
+        body,
         { headers: { "Content-Type": "application/json" }, timeout: 20000 }
       );
       const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
