@@ -17,15 +17,12 @@ async function revertWithRetry(api, name, threadID) {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      await new Promise((resolve, reject) => {
-        api.setTitle(name, threadID, (err) => err ? reject(err) : resolve());
-      });
+      await api.setTitle(name, threadID);
       lastRevertTime.set(threadID, Date.now());
       break;
     } catch (err) {
-      const delay = attempt * 3000;
       if (attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise(r => setTimeout(r, attempt * 3000));
       }
     }
   }
@@ -36,7 +33,7 @@ async function revertWithRetry(api, name, threadID) {
 module.exports = {
   config: {
     name: "نيم",
-    version: "5.0",
+    version: "5.1",
     author: "edit",
     role: 1,
     shortDescription: "تغيير اسم المجموعة مع حماية صارمة",
@@ -61,9 +58,7 @@ module.exports = {
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await new Promise((resolve, reject) => {
-          api.setTitle(newName, threadID, (err) => err ? reject(err) : resolve());
-        });
+        await api.setTitle(newName, threadID);
         break;
       } catch (err) {
         if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000));
