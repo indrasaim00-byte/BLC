@@ -4,7 +4,7 @@ module.exports = {
     aliases: ["maintenance", "report"],
     version: "1.1",
     author: "edit",
-    role: 0,
+    role: 2,
     shortDescription: "إرسال مشكلة أو طلب للمطوّر مباشرة",
     category: "utility",
     guide: "{pn} [المشكلة أو الطلب]",
