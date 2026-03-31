@@ -148,18 +148,16 @@ function buildUserContext(senderID) {
 
 function getApiKey() {
   const envKey =
-    process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.GROQ_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.OPEN_AI_KEY ||
     "";
   if (envKey.trim()) return envKey.trim();
   try {
     const cfgPath = require("path").join(process.cwd(), "config.json");
     const cfg = JSON.parse(require("fs").readFileSync(cfgPath, "utf-8"));
     const fromCfg =
-      cfg.apiKeys?.gemini ||
-      cfg.apiKeys?.google ||
-      cfg.apiKeys?.groq ||
+      cfg.apiKeys?.openai ||
+      cfg.apiKeys?.openAI ||
       "";
     return fromCfg.trim() || null;
   } catch (_) { return null; }
@@ -205,24 +203,36 @@ async function callAI(history, apiKey, senderID) {
   const userCtx = buildUserContext(senderID);
   const fullPrompt = SYSTEM_PROMPT + '\n\n' + userCtx;
 
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const messages = [
+    { role: "system", content: fullPrompt },
+    ...history.map(h => ({
+      role: h.role === "assistant" ? "assistant" : "user",
+      content: h.content
+    }))
+  ];
+
+  const models = ["gpt-4o-mini", "gpt-3.5-turbo"];
   let lastErr;
 
   for (const model of models) {
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        "https://api.openai.com/v1/chat/completions",
         {
-          system_instruction: { parts: [{ text: fullPrompt }] },
-          contents: history,
-          generationConfig: {
-            temperature: 0.85,
-            maxOutputTokens: 300
-          }
+          model,
+          messages,
+          max_tokens: 300,
+          temperature: 0.85
         },
-        { headers: { "Content-Type": "application/json" }, timeout: 20000 }
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          timeout: 20000
+        }
       );
-      const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const text = response.data?.choices?.[0]?.message?.content;
       if (text) return text;
     } catch (err) {
       lastErr = err;
@@ -258,7 +268,7 @@ async function processMessage(api, event, commandName, historyKey, input) {
   if (!apiKey) {
     const adminIDs = global.BlackBot?.config?.adminBot || [];
     if (adminIDs.includes(senderID)) {
-      api.sendMessage("⚠️ لا يوجد مفتاح Gemini API.\nضع المفتاح في config.json → apiKeys.gemini", threadID, null, messageID);
+      api.sendMessage("⚠️ لا يوجد مفتاح OpenAI API.\nضع المفتاح في config.json → apiKeys.openai", threadID, null, messageID);
     }
     return;
   }
@@ -280,14 +290,14 @@ async function processMessage(api, event, commandName, historyKey, input) {
   if (!conversationHistory.has(historyKey)) conversationHistory.set(historyKey, []);
   const history = conversationHistory.get(historyKey);
 
-  history.push({ role: "user", parts: [{ text: input }] });
+  history.push({ role: "user", content: input });
   if (history.length > 20) history.splice(0, history.length - 20);
 
   try {
     const text = await callAI(history, apiKey, senderID);
     if (!text) return;
 
-    history.push({ role: "model", parts: [{ text }] });
+    history.push({ role: "assistant", content: text });
     const safeText = obfuscateSwears(text);
 
     await sendWithTypingDelay(api, safeText, threadID, (err, info) => {
