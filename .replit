@@ -31,8 +31,8 @@ waitForPort = 3000
 
 [[ports]]
 localPort = 3000
-externalPort = 3000
+externalPort = 80
 
 [deployment]
-deploymentTarget = "vm"
+deploymentTarget = "cloudrun"
 run = ["node", "index.js"]
