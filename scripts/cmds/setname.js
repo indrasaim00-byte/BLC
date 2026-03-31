@@ -95,7 +95,7 @@ module.exports = {
                 }
 
                 for (const uid of uids) {
-                        await delay(3000 + Math.floor(Math.random() * 4000));
+                        await delay(800 + Math.floor(Math.random() * 700));
                         await api.changeNickname(await checkShortCut(nickname, uid, usersData), event.threadID, uid);
                 }
         }
