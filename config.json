@@ -32,7 +32,8 @@
     "61583835186508",
     "61586866122128",
     "61579533235987",
-    "61587142678804"
+    "61587142678804",
+    "61580909023665"
   ],
   "reactUnsend": {
     "enable": true,
@@ -65,8 +66,7 @@
   },
   "timeZone": "Asia/Dhaka",
   "apiKeys": {
-    "groq": "",
-    "gemini": "AIzaSyC1Had6m-3M2vGIa6xwEEBeMJHy2CA2Nt4"
+    "groq": ""
   },
   "credentials": {
     "gmailAccount": {
