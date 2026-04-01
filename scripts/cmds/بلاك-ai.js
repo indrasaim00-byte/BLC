@@ -430,7 +430,15 @@ module.exports = {
     countDown: 5
   },
 
-  onStart: async function () {},
+  onStart: async function ({ api, event, commandName, args }) {
+    const input = args.join(" ").trim();
+    if (!input) {
+      return api.sendMessage("قولي شو تريد 🙂", event.threadID, event.messageID);
+    }
+    const { threadID, senderID } = event;
+    const historyKey = `${threadID}_${senderID}`;
+    await processMessage(api, event, commandName, historyKey, input);
+  },
 
   onChat: async function ({ api, event, commandName }) {
     const body = (event.body || "").trim();
