@@ -135,36 +135,6 @@ const COPY_THREAT_RESPONSES = [
 const conversationHistory = new Map();
 const userProfiles = new Map();
 
-const J = '\u200D';
-
-function zjoin(str) {
-  return [...str].join(J);
-}
-
-const SWEAR_ROOTS = [
-  /شرموط[ةه]?/g,
-  /عاهر[ةه]?/g,
-  /منيوك[ةه]?/g,
-  /قحب[ةه]?/g,
-  /خنزير[ين]?/g,
-  /بهيم[ةه]?/g,
-  /لواط/g,
-  /تبان/g,
-  /زبيب?/g,
-  /كسم[هاكيةو]*/g,
-  /كس[هاكيةوم]*/g,
-  /عرص[ةه]?/g,
-  /ن[يى]ك[تكوهاميةن]*/g,
-  /زنا/g,
-];
-
-function obfuscateSwears(text) {
-  let result = text;
-  for (const pattern of SWEAR_ROOTS) {
-    result = result.replace(pattern, match => zjoin(match));
-  }
-  return result;
-}
 
 function getUserRole(senderID) {
   const adminIDs = global.BlackBot?.config?.adminBot || [];
@@ -384,7 +354,7 @@ async function processMessage(api, event, commandName, historyKey, input) {
     if (!text) return;
 
     history.push({ role: "model", parts: [{ text }] });
-    const safeText = obfuscateSwears(text);
+    const safeText = text;
 
     await sendWithTypingDelay(api, safeText, threadID, (err, info) => {
       if (!info) return;
