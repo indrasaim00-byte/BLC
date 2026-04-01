@@ -8,11 +8,6 @@ const MANGADEX = "https://api.mangadex.org";
 const cacheDir = path.join(__dirname, "cache");
 const MAX_PER_MSG = 10;
 
-// المواقع العربية التي تعمل فعلاً
-const ARABIC_SITES = [
-  { name: "3عشق", base: "https://3asq.org" },
-];
-
 const ANILIST_QUERY = `
 query ($search: String) {
   Page(perPage: 1) {
@@ -26,7 +21,12 @@ query ($search: String) {
 }`;
 
 /* ─── helpers ─── */
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const BASE_HEADERS = {
+  "User-Agent": UA,
+  "Accept-Language": "ar,en-US;q=0.7,en;q=0.3",
+  "Referer": "https://google.com/"
+};
 
 function countryLabel(c) {
   return ({ JP: "🇯🇵 مانغا", KR: "🇰🇷 مانهوا", CN: "🇨🇳 مانهوا صينية" })[c] || "مانغا";
@@ -59,7 +59,7 @@ async function translateAr(text) {
 async function dlImage(url, fp) {
   try {
     fs.ensureDirSync(path.dirname(fp));
-    const r = await axios.get(url.trim(), { responseType: "arraybuffer", timeout: 15000, headers: { "User-Agent": UA } });
+    const r = await axios.get(url.trim(), { responseType: "arraybuffer", timeout: 15000, headers: BASE_HEADERS });
     if (!(r.headers["content-type"] || "").includes("image")) return null;
     fs.writeFileSync(fp, Buffer.from(r.data));
     return fp;
@@ -73,42 +73,100 @@ async function send(api, threadID, body, attachment) {
   });
 }
 
-/* ─── AniList ─── */
-async function aniSearch(query) {
-  try {
-    const r = await axios.post(ANILIST, { query: ANILIST_QUERY, variables: { search: query } },
-      { headers: { "Content-Type": "application/json" }, timeout: 12000 });
-    return r.data?.data?.Page?.media?.[0] || null;
-  } catch (e) { console.error("[مانغا] AniList:", e.message); return null; }
-}
+/* ═══════════════════════════════════════════════
+   SITE 1: despair-manga.net (ديسبر مانجا)
+   - Has 500+ Arabic-translated manga incl. Lookism ch1-587
+   - Chapters embedded in HTML via .eplister ul li[data-num]
+   - Images in ts_reader.run({...}) JavaScript object
+   ═══════════════════════════════════════════════ */
 
-/* ─── WordPress-manga scraper (3asq.org) ─── */
-// يجلب كل النتائج من البحث وليس أول نتيجة فقط
-async function wpSearch(base, query) {
+async function despairSearch(query) {
   try {
-    const r = await axios.get(`${base}/?s=${encodeURIComponent(query)}&post_type=wp-manga`,
-      { timeout: 9000, headers: { "User-Agent": UA } });
+    const r = await axios.get(
+      `https://despair-manga.net/?s=${encodeURIComponent(query)}&post_type=wp-manga`,
+      { timeout: 9000, headers: BASE_HEADERS }
+    );
     const $ = cheerio.load(r.data);
     const results = [];
-    $(".post-title a, h3.h4 a, .manga-title a").each(function (_, el) {
+    $("a[href*='despair-manga.net/manga/']").each((_, el) => {
       const href = $(el).attr("href") || "";
-      const title = $(el).text().trim();
-      const match = href.match(/\/manga\/([^/?#]+)/);
-      if (match && title) results.push({ slug: match[1], title, base });
+      const match = href.match(/despair-manga\.net\/manga\/([^/?#]+)/);
+      if (match && !results.find(r => r.slug === match[1])) {
+        results.push({ slug: match[1], title: $(el).text().trim() || match[1], base: "https://despair-manga.net" });
+      }
     });
     return results;
   } catch (_) { return []; }
 }
 
-async function wpChapters(base, slug) {
+async function despairChapters(slug) {
   try {
-    const r = await axios.post(`${base}/manga/${slug}/ajax/chapters/`, null, {
-      timeout: 9000,
-      headers: { "User-Agent": UA, "Referer": `${base}/manga/${slug}/`, "X-Requested-With": "XMLHttpRequest" }
-    });
+    const r = await axios.get(
+      `https://despair-manga.net/manga/${slug}/`,
+      { timeout: 9000, headers: BASE_HEADERS }
+    );
     const $ = cheerio.load(r.data);
     const chapters = [];
-    $("li a").each(function (_, el) {
+    $(".eplister ul li").each((_, el) => {
+      const num = $(el).attr("data-num");
+      const link = $(el).find("a").attr("href");
+      if (num && link) chapters.push({ num: parseFloat(num), url: link });
+    });
+    return chapters.sort((a, b) => a.num - b.num);
+  } catch (_) { return []; }
+}
+
+async function despairPages(chapterUrl) {
+  try {
+    const r = await axios.get(chapterUrl, {
+      timeout: 12000,
+      headers: { ...BASE_HEADERS, Referer: "https://despair-manga.net/" }
+    });
+    // Extract ts_reader.run({...}) data
+    const match = r.data.match(/ts_reader\.run\((\{[\s\S]*?\})\)/);
+    if (!match) return [];
+    const data = JSON.parse(match[1]);
+    const base = "https://despair-manga.net";
+    const source = data.sources?.[0];
+    if (!source?.images?.length) return [];
+    return source.images.map(img => img.startsWith("http") ? img : base + img);
+  } catch (_) { return []; }
+}
+
+/* ═══════════════════════════════════════════════
+   SITE 2: 3asq.org (ثلاثة عشق)
+   - WordPress-manga structure
+   - Has Arabic chapters (typically 131+ for Lookism)
+   ═══════════════════════════════════════════════ */
+
+async function asqSearch(query) {
+  try {
+    const r = await axios.get(
+      `https://3asq.org/?s=${encodeURIComponent(query)}&post_type=wp-manga`,
+      { timeout: 9000, headers: BASE_HEADERS }
+    );
+    const $ = cheerio.load(r.data);
+    const results = [];
+    $(".post-title a, h3.h4 a, .manga-title a").each((_, el) => {
+      const href = $(el).attr("href") || "";
+      const title = $(el).text().trim();
+      const match = href.match(/\/manga\/([^/?#]+)/);
+      if (match && title) results.push({ slug: match[1], title, base: "https://3asq.org" });
+    });
+    return results;
+  } catch (_) { return []; }
+}
+
+async function asqChapters(slug) {
+  try {
+    const r = await axios.post(
+      `https://3asq.org/manga/${slug}/ajax/chapters/`,
+      null,
+      { timeout: 9000, headers: { ...BASE_HEADERS, Referer: `https://3asq.org/manga/${slug}/`, "X-Requested-With": "XMLHttpRequest" } }
+    );
+    const $ = cheerio.load(r.data);
+    const chapters = [];
+    $("li a").each((_, el) => {
       const href = $(el).attr("href") || "";
       const text = $(el).text().trim();
       if (!href.includes("/manga/")) return;
@@ -119,12 +177,12 @@ async function wpChapters(base, slug) {
   } catch (_) { return []; }
 }
 
-async function wpPages(chapterUrl) {
+async function asqPages(chapterUrl) {
   try {
-    const r = await axios.get(chapterUrl, { timeout: 10000, headers: { "User-Agent": UA } });
+    const r = await axios.get(chapterUrl, { timeout: 10000, headers: BASE_HEADERS });
     const $ = cheerio.load(r.data);
     const pages = [];
-    $(".reading-content img, .wp-manga-chapter-img, img[data-src]").each(function (_, el) {
+    $(".reading-content img, .wp-manga-chapter-img, img[data-src]").each((_, el) => {
       const src = ($(el).attr("data-src") || $(el).attr("data-lazy-src") || $(el).attr("src") || "").trim();
       if (src && src.startsWith("http") && !src.includes("placeholder") && !src.includes("logo")) pages.push(src);
     });
@@ -132,46 +190,83 @@ async function wpPages(chapterUrl) {
   } catch (_) { return []; }
 }
 
-/* البحث عبر كل المواقع العربية — يجرب كل النتائج وليس أول واحدة */
+/* ─── Universal search & chapter fetcher ─── */
+
+// البحث عن فصل معين عبر كل المصادر
 async function findArabicChapter(searchNames, chapterNum) {
   const target = parseFloat(chapterNum);
-  for (const site of ARABIC_SITES) {
-    for (const name of searchNames) {
-      const results = await wpSearch(site.base, name);
-      if (!results.length) continue;
-      // جرب كل النتائج وليس أول واحدة
-      for (const res of results.slice(0, 4)) {
-        try {
-          const chapters = await wpChapters(site.base, res.slug);
-          const found = chapters.find(c => Math.abs(c.num - target) < 0.01);
-          if (!found) continue;
-          const pages = await wpPages(found.url);
-          if (pages.length) {
-            console.log(`[مانغا] ✓ ${site.name}/${res.slug} فصل ${chapterNum}: ${pages.length} صفحة`);
-            return { pages, source: site.name, title: res.title };
-          }
-        } catch (_) {}
+
+  // 1️⃣ despair-manga.net أولاً (يبدأ من فصل 1)
+  for (const name of searchNames) {
+    const results = await despairSearch(name);
+    for (const res of results.slice(0, 3)) {
+      try {
+        const chapters = await despairChapters(res.slug);
+        const found = chapters.find(c => Math.abs(c.num - target) < 0.01);
+        if (!found) continue;
+        const pages = await despairPages(found.url);
+        if (pages.length) {
+          console.log(`[مانغا] ✓ ديسبر/${res.slug} فصل ${chapterNum}: ${pages.length} صفحة`);
+          return { pages, source: "ديسبر مانجا", title: res.title };
+        }
+      } catch (_) {}
+    }
+  }
+
+  // 2️⃣ 3asq.org احتياطياً
+  for (const name of searchNames) {
+    const results = await asqSearch(name);
+    for (const res of results.slice(0, 4)) {
+      try {
+        const chapters = await asqChapters(res.slug);
+        const found = chapters.find(c => Math.abs(c.num - target) < 0.01);
+        if (!found) continue;
+        const pages = await asqPages(found.url);
+        if (pages.length) {
+          console.log(`[مانغا] ✓ 3asq/${res.slug} فصل ${chapterNum}: ${pages.length} صفحة`);
+          return { pages, source: "3عشق", title: res.title };
+        }
+      } catch (_) {}
+    }
+  }
+
+  return null;
+}
+
+// جلب قائمة الفصول المتاحة (للعرض في رسالة الخطأ)
+async function getArabicInfo(searchNames) {
+  // despair-manga.net
+  for (const name of searchNames) {
+    const results = await despairSearch(name);
+    for (const res of results.slice(0, 2)) {
+      const chapters = await despairChapters(res.slug);
+      if (chapters.length) {
+        const nums = chapters.map(c => c.num);
+        return { nums, source: "ديسبر مانجا", title: res.title };
+      }
+    }
+  }
+  // 3asq.org
+  for (const name of searchNames) {
+    const results = await asqSearch(name);
+    for (const res of results.slice(0, 3)) {
+      const chapters = await asqChapters(res.slug);
+      if (chapters.length) {
+        const nums = chapters.map(c => c.num);
+        return { nums, source: "3عشق", title: res.title };
       }
     }
   }
   return null;
 }
 
-/* جلب قائمة الفصول المتاحة عربياً */
-async function getArabicInfo(searchNames) {
-  for (const site of ARABIC_SITES) {
-    for (const name of searchNames) {
-      const results = await wpSearch(site.base, name);
-      for (const res of results.slice(0, 3)) {
-        const chapters = await wpChapters(site.base, res.slug);
-        if (chapters.length) {
-          const nums = chapters.map(c => c.num);
-          return { nums, source: site.name, title: res.title };
-        }
-      }
-    }
-  }
-  return null;
+/* ─── AniList ─── */
+async function aniSearch(query) {
+  try {
+    const r = await axios.post(ANILIST, { query: ANILIST_QUERY, variables: { search: query } },
+      { headers: { "Content-Type": "application/json" }, timeout: 12000 });
+    return r.data?.data?.Page?.media?.[0] || null;
+  } catch (e) { console.error("[مانغا] AniList:", e.message); return null; }
 }
 
 /* ─── MangaDex ─── */
@@ -190,10 +285,8 @@ async function mdSearch(title) {
   } catch (_) { return null; }
 }
 
-// جلب أي ترجمة متاحة للفصل (عربي → إنجليزي → أي لغة)
 async function mdChapter(mdId, chNum) {
-  const langPriority = ["ar", "en"];
-  for (const lang of langPriority) {
+  for (const lang of ["ar", "en"]) {
     try {
       const r = await axios.get(`${MANGADEX}/chapter`, {
         params: { manga: mdId, chapter: String(chNum), "translatedLanguage[]": lang, limit: 10 },
@@ -205,7 +298,6 @@ async function mdChapter(mdId, chNum) {
       if (found) return { chapter: found, lang };
     } catch (_) {}
   }
-  // آخر محاولة: أي لغة
   try {
     const r = await axios.get(`${MANGADEX}/chapter`, {
       params: { manga: mdId, chapter: String(chNum), limit: 10 },
@@ -230,7 +322,6 @@ async function mdPages(chapterId) {
   } catch (_) { return []; }
 }
 
-// جلب قائمة الفصول من MangaDex (عربي أولاً ثم إنجليزي)
 async function mdChapterList(mdId) {
   for (const lang of ["ar", "en"]) {
     try {
@@ -251,12 +342,12 @@ module.exports = {
   config: {
     name: "مانغا",
     aliases: ["manga", "مانهوا", "مانجا", "manhua", "manhwa"],
-    version: "8.0",
+    version: "9.0",
     author: "Saint",
     countDown: 5,
     role: 0,
     shortDescription: "ابحث عن مانغا أو اقرأ فصولها",
-    longDescription: "معلومات من AniList + فصول عربية من 3asq.org + MangaDex احتياطياً",
+    longDescription: "معلومات من AniList + فصول عربية من ديسبر مانجا و 3asq + MangaDex احتياطياً",
     category: "anime",
     guide: "{pn} [اسم المانغا]\n{pn} [اسم المانغا] فصل [رقم]"
   },
@@ -267,8 +358,8 @@ module.exports = {
 
     if (!input) return api.sendMessage(
       "🔍 اكتب اسم المانغا بعد الأمر.\n" +
-      "مثال: .مانغا one piece\n" +
-      "لقراءة فصل: .مانغا one piece فصل 1",
+      "مثال: .مانغا lookism\n" +
+      "لقراءة فصل: .مانغا lookism فصل 1",
       threadID
     );
 
@@ -377,7 +468,7 @@ async function handleChapter(api, threadID, query, chapterNum, unsend) {
   let pages = [], source = "", chTitle = "", langLabel = "🇸🇦 عربي";
   let availableRange = "";
 
-  /* 1️⃣ البحث في المواقع العربية أولاً */
+  /* 1️⃣ المصادر العربية (despair-manga أولاً ثم 3asq) */
   const arResult = await findArabicChapter(searchNames, chapterNum);
   if (arResult) {
     pages = arResult.pages;
@@ -400,7 +491,6 @@ async function handleChapter(api, threadID, query, chapterNum, unsend) {
         const lm = { ar: "🇸🇦 عربي", en: "🇬🇧 إنجليزي", ja: "🇯🇵 ياباني", ko: "🇰🇷 كوري", zh: "🇨🇳 صيني", fr: "🇫🇷 فرنسي" };
         langLabel = lm[result.lang] || result.lang;
       } else {
-        // جلب النطاق المتاح لتوجيه المستخدم
         const mdList = await mdChapterList(mdManga.id).catch(() => null);
         if (mdList?.nums?.length) {
           const flag = mdList.lang === "ar" ? "عربي" : "إنجليزي";
@@ -410,7 +500,7 @@ async function handleChapter(api, threadID, query, chapterNum, unsend) {
     }
   }
 
-  /* جلب النطاق العربي المتاح للرسالة */
+  /* جلب النطاق المتاح لرسالة الخطأ */
   if (!pages.length) {
     const arInfo = await getArabicInfo(searchNames);
     if (arInfo) {
@@ -446,7 +536,7 @@ async function handleChapter(api, threadID, query, chapterNum, unsend) {
   for (let i = 0; i < pages.length; i += 5) {
     const batch = pages.slice(i, i + 5);
     const results = await Promise.all(batch.map((url, j) => {
-      const ext = url.toLowerCase().includes(".webp") ? "webp" : "jpg";
+      const ext = url.toLowerCase().includes(".webp") ? "webp" : url.toLowerCase().includes(".png") ? "png" : "jpg";
       return dlImage(url, path.join(tmpDir, `page_${String(i + j + 1).padStart(3, "0")}.${ext}`));
     }));
     downloaded.push(...results);
@@ -464,7 +554,9 @@ async function handleChapter(api, threadID, query, chapterNum, unsend) {
     const isLast = i + MAX_PER_MSG >= valid.length;
     await new Promise(resolve => {
       api.sendMessage({
-        body: isLast ? `📄 ${range} من ${valid.length}\n✎﹏﹏﹏﹏﹏﹏﹏﹏\n↞ ⌯ 𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ ⪼` : `📄 الصفحات ${range} من ${valid.length}`,
+        body: isLast
+          ? `📄 ${range} من ${valid.length}\n✎﹏﹏﹏﹏﹏﹏﹏﹏\n↞ ⌯ 𝗕⃪𝗹⃪𝖆⃟𝗰⃪𝗸⃪ ˖՞𝗦⃪𝖆⃟𝗶⃪𝗻⃪𝘁⃪ ⪼`
+          : `📄 الصفحات ${range} من ${valid.length}`,
         attachment: chunk.map(p => fs.createReadStream(p))
       }, threadID, () => resolve());
     });
