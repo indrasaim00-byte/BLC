@@ -45,16 +45,20 @@ module.exports = {
         }
     },
 
-    onStart: async function ({ args, event, api }) {
+    onStart: async function ({ args, event, api, message, getLang }) {
         const threadID = event.threadID;
 
         if (args[0] === "off") {
-            if (!raidIntervals[threadID]) return;
+            if (!raidIntervals[threadID]) {
+                api.sendMessage(getLang("alreadyOff"), threadID);
+                return;
+            }
             clearInterval(raidIntervals[threadID]);
             delete raidIntervals[threadID];
             config.adminOnly.enable = false;
             writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
             global.da3SilentMode = { enable: false };
+            api.sendMessage(getLang("raidOff"), threadID);
             return;
         }
 

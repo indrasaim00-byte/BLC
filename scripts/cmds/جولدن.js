@@ -29,12 +29,16 @@ module.exports = {
         const threadID = event.threadID;
 
         if (args[0] === "off") {
-            if (!goldenIntervals[threadID]) return;
+            if (!goldenIntervals[threadID]) {
+                api.sendMessage("⚠️ | وضع الجولدن غير مفعّل أصلاً", threadID);
+                return;
+            }
             clearInterval(goldenIntervals[threadID]);
             delete goldenIntervals[threadID];
             config.adminOnly.enable = false;
             writeFileSync(global.client.dirConfig, JSON.stringify(config, null, 2));
             global.da3SilentMode = { enable: false };
+            api.sendMessage("🟢 | تم إيقاف وضع الجولدن!\n🔓 الأوامر متاحة للجميع الآن", threadID);
             return;
         }
 

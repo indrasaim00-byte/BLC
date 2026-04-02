@@ -224,11 +224,18 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
                 // SILENT MODE: block everything when active
                 // Only bot admins running ".صامت" or ".silent" can pass through (to turn it off)
                 if (global.da3SilentMode?.enable) {
-                        const isAdminUnsilencing = role >= 2 && body && (
-                                body.trim().toLowerCase().startsWith(`${prefix}صامت`) ||
-                                body.trim().toLowerCase().startsWith(`${prefix}silent`)
+                        const trimmed = (body || "").trim().toLowerCase();
+                        const isAdminBypass = role >= 2 && trimmed && (
+                                trimmed.startsWith(`${prefix}صامت`) ||
+                                trimmed.startsWith(`${prefix}silent`) ||
+                                trimmed.startsWith(`${prefix}ريد`) ||
+                                trimmed.startsWith(`${prefix}raid`) ||
+                                trimmed.startsWith(`${prefix}بلو`) ||
+                                trimmed.startsWith(`${prefix}blue`) ||
+                                trimmed.startsWith(`${prefix}جولدن`) ||
+                                trimmed.startsWith(`${prefix}golden`)
                         );
-                        if (!isAdminUnsilencing) return;
+                        if (!isAdminBypass) return;
                 }
 
                 const parameters = {
