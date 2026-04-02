@@ -17,8 +17,20 @@
  * Cảm ơn bạn đã sử dụng
  */
 
-process.on('unhandledRejection', error => console.log(error));
-process.on('uncaughtException', error => console.log(error));
+process.on('unhandledRejection', (error, promise) => {
+        console.error('[UNHANDLED_REJECTION]', error?.stack || error);
+});
+process.on('uncaughtException', (error) => {
+        console.error('[UNCAUGHT_EXCEPTION]', error?.stack || error);
+        const code = error?.code || '';
+        const isNetwork = code === 'ECONNRESET' || code === 'EPIPE' || code === 'ECONNREFUSED' || code === 'ETIMEDOUT' || code === 'ERR_IPC_CHANNEL_CLOSED';
+        if (isNetwork) {
+                console.error('[RECOVERY] Network error, continuing...');
+                return;
+        }
+        console.error('[FATAL] Unrecoverable error, exiting for restart...');
+        process.exit(2);
+});
 
 const axios = require("axios");
 const fs = require("fs-extra");
