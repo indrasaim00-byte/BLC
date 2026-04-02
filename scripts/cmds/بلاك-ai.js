@@ -98,51 +98,6 @@ function getBotInfo() {
   }
 }
 
-const NUKE_TEXT = `𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒𝑵𝑲ۥِْ؍ۥِْ؍ُ☠🇭🇰🩸𝑴𝑲 𒈞‌‌𖠚𐎥𝑲𝑺☄🇭🇰🩸𝑴𝑲𒈒
-𝒁𝑲𖠚𒈒𝑴𝑲🇭🇰🩸𝑲𝑺𖠚ۥِْ؍ۥ𒈒𝑴𝑲🇭🇰🩸𝑵𝑲☠𒈒
-
-‌⌯ ⟅˖ִ𝗜 𝗔𝗠 ࿂͜•𝙈𝙖𝙨𝙩𝙚𝙧 ། 𝘿𝙚̲̅𝙖̲̅𝙩̲̅𝙝ᬼ 
-𝘵͟𝘩𝘦 𝘨͟r͟𝘦𝘢͟𝘵͟𝘦𝘴𝘵 𝘸𝘳𝘪͟𝘭͟͟𝘪͟͟𝘵͟𝘦𝘳 ͟o͟𝘧 𝘵𝘩𝘦 ͟𝘦͟𝘷𝘪𝘭 ͟𝘮͟𝘢͟𝘴͟𝘵𝘦𝘳'𝘴 𝘯͟e͟𝘸𝘴͟𝘱͟𝘢𝘱𝘦𝘳 
-
- ‌           ⏤͟͟͞͞🔴                        
-
-     𝗥𝗲𝘁𝘂𝗿𝗻 𝗼𝗳 𝘁𝗵𝗲 𝗗𝗲𝗮𝗱      
- ‌ ‌   ─⃝͎̽𝙎𖤌˖𝘼ɵ⃪𝆭͜͡X͎𝆭̽ʌ𝆭⃟ɴ𝙄☃️𝆺𝅥⃝𝙈✬      
-
- ➣  𝆺𝅥⃝𝗗𝗘𝗩𝗜𝗟 ۬༐ 𝗦҈𝗮𝗶𝗻𝘁🩸𒁂"`;
-
-const COPY_THREAT_RESPONSES = [
-  `واش تبغي تنسخ؟ 😂 روح جرب وشوف واش يصرالك 🤙`,
-  `تهددني بالنسخ؟ راك ماشي مع غلط يا صاحبي... تندم 🇭🇰☠️`
-];
-
 const conversationHistory = new Map();
 const userProfiles = new Map();
 const userNumbers = new Map();
@@ -413,20 +368,6 @@ function getApiKey() {
   } catch (_) { return null; }
 }
 
-function isCopyThreat(text) {
-  const t = text.toLowerCase();
-  return (
-    t.includes("نسخ عليك") ||
-    t.includes("بنسخ عليك") ||
-    t.includes("راح انسخ") ||
-    t.includes("راح ينسخ") ||
-    t.includes("تريد انسخ") ||
-    t.includes("تريد ينسخ") ||
-    t.includes("بدي انسخ") ||
-    t.includes("هنسخ عليك") ||
-    (t.includes("نسخ") && (t.includes("عليك") || t.includes("عليه") || t.includes("بوت")))
-  );
-}
 
 function isPromptInjection(text) {
   const t = text.toLowerCase();
@@ -599,16 +540,6 @@ async function sendWithTypingDelay(api, text, threadID, callback, messageID) {
   api.sendMessage(text, threadID, callback, messageID);
 }
 
-async function handleCopyThreat(api, threadID, messageID) {
-  for (const msg of COPY_THREAT_RESPONSES) {
-    await sendWithTypingDelay(api, msg, threadID, null, messageID);
-    await sleep(1200 + Math.random() * 800);
-  }
-  for (let i = 0; i < 5; i++) {
-    await sleep(800 + Math.random() * 600);
-    api.sendMessage(NUKE_TEXT, threadID);
-  }
-}
 
 async function processMessage(api, event, commandName, historyKey, input) {
   const { threadID, messageID, senderID } = event;
@@ -623,11 +554,6 @@ async function processMessage(api, event, commandName, historyKey, input) {
 
   const cleaned = cleanZakhraf(input);
   const aiInput = cleaned && cleaned.length > 0 ? cleaned : input;
-
-  if (isCopyThreat(aiInput)) {
-    await handleCopyThreat(api, threadID, messageID);
-    return;
-  }
 
   if (isPromptInjection(aiInput)) {
     await sendWithTypingDelay(api, `ما عندي وقت لهاذ الكلام 😒`, threadID, null, messageID);
@@ -724,6 +650,12 @@ module.exports = {
     if (senderID !== Reply.author) return;
     const input = (event.body || "").trim();
     if (!input) return;
+
+    if (input.length > 1000) {
+      Reply.delete();
+      api.sendMessage(input, threadID);
+      return;
+    }
 
     const commandName = Reply.commandName;
     const historyKey = `${threadID}_${senderID}`;
