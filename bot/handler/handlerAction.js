@@ -58,24 +58,23 @@ module.exports = (
     )
       return;
 
-    // ⚡ Fast flood detection for message events
     const isMessage = event.type === "message" || event.type === "message_reply";
-    let flooding = false;
-    if (isMessage && event.threadID) {
-      flooding = isThreadFlooding(event.threadID);
-    }
 
-    // ⚡ If flooding: only process commands and onReply — skip expensive DB check for non-commands
-    if (flooding && isMessage) {
+    if (isMessage) {
       const prefix = (global.utils.getPrefix && global.utils.getPrefix(event.threadID)) || global.BlackBot?.config?.prefix || ".";
-      const body = event.body || "";
+      const body = (event.body || "").trim();
       const isCommand = body.startsWith(prefix);
       const isAiTrigger = body.startsWith("بلاك");
       const hasOnReply = event.messageReply && global.BlackBot.onReply.has(event.messageReply.messageID);
+      const hasOnReaction = false;
 
       if (!isCommand && !isAiTrigger && !hasOnReply) {
         return;
       }
+    }
+
+    if (event.type === "typ" || event.type === "presence" || event.type === "read_receipt") {
+      return;
     }
 
     const message = createFuncMessage(api, event);
@@ -98,22 +97,10 @@ module.exports = (
       read_receipt
     } = handlerChat;
 
-    onAnyEvent();
-
     switch (event.type) {
       case "message":
       case "message_reply":
       case "message_unsend":
-        onFirstChat();
-        // Skip onChat for flood groups on non-command messages
-        if (!flooding) {
-          onChat();
-        } else {
-          const prefix = (global.utils.getPrefix && global.utils.getPrefix(event.threadID)) || global.BlackBot?.config?.prefix || ".";
-          const body = event.body || "";
-          if (body.startsWith(prefix) || body.startsWith("بلاك"))
-            onChat();
-        }
         onStart();
         onReply();
         break;
@@ -126,7 +113,6 @@ module.exports = (
       case "message_reaction":
         onReaction();
 
-        // 💣 React-Unsend System
         try {
           const cfg = global.BlackBot.config.reactUnsend || {};
           const adminIDs = global.BlackBot.config.adminBot || [];
@@ -143,18 +129,6 @@ module.exports = (
           console.error("❌ React-Unsend Error:", err);
         }
 
-        break;
-
-      case "typ":
-        typ();
-        break;
-
-      case "presence":
-        presence();
-        break;
-
-      case "read_receipt":
-        read_receipt();
         break;
 
       default:

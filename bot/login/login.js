@@ -839,13 +839,23 @@ async function startBot(_0x3cad9e) {
           }
         }
         if (_0x40b7b6.disableAll === false && _0x40b7b6[_0xb100c2.type] !== false) {
-          const _0x5897ff = [...(_0xb100c2.participantIDs || [])];
-          if (_0xb100c2.participantIDs) {
-            _0xb100c2.participantIDs = 'Array(' + _0xb100c2.participantIDs.length + ')';
+          const _0x_msgBody = (_0xb100c2.body || "").trim();
+          const _0x_msgType = _0xb100c2.type;
+          const _0x_isTextMsg = _0x_msgType === "message" || _0x_msgType === "message_reply";
+          let _0x_shouldLog = true;
+          if (_0x_isTextMsg) {
+            const _0x_pfx = getPrefix(_0xb100c2.threadID);
+            _0x_shouldLog = _0x_msgBody.startsWith(_0x_pfx) || _0x_msgBody.startsWith("بلاك");
           }
-          console.log(colors.green((_0xb100c2.type || '').toUpperCase() + ':'), jsonStringifyColor(_0xb100c2, null, 0x2));
-          if (_0xb100c2.participantIDs) {
-            _0xb100c2.participantIDs = _0x5897ff;
+          if (_0x_shouldLog) {
+            const _0x5897ff = [...(_0xb100c2.participantIDs || [])];
+            if (_0xb100c2.participantIDs) {
+              _0xb100c2.participantIDs = 'Array(' + _0xb100c2.participantIDs.length + ')';
+            }
+            console.log(colors.green((_0xb100c2.type || '').toUpperCase() + ':'), jsonStringifyColor(_0xb100c2, null, 0x2));
+            if (_0xb100c2.participantIDs) {
+              _0xb100c2.participantIDs = _0x5897ff;
+            }
           }
         }
         if (_0xb100c2.senderID && _0xe3d6c8[_0xb100c2.senderID] || _0xb100c2.userID && _0xe3d6c8[_0xb100c2.userID]) {
