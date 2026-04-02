@@ -67,9 +67,13 @@ module.exports = {
                         return;
                 const arrayMentions = Object.keys(mentions);
 
-                if (!global.db._userDataMap || global.db._userDataMap._len !== global.db.allUserData.length) {
+                if (!global.db._userDataMap) {
+                        global.db._userDataMap = new Map();
+                        global.db._userDataMapVer = 0;
+                }
+                if (global.db._userDataMapVer !== (global.db._userDataVer || 0)) {
                         global.db._userDataMap = new Map(global.db.allUserData.map(u => [String(u.userID), u]));
-                        global.db._userDataMap._len = global.db.allUserData.length;
+                        global.db._userDataMapVer = global.db._userDataVer || 0;
                 }
 
                 for (const userID of arrayMentions) {

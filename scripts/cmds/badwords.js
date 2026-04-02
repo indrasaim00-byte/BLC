@@ -193,9 +193,13 @@ module.exports = {
         onChat: async function ({ message, event, api, threadsData, prefix, getLang }) {
                 if (!event.body)
                         return;
-                if (!global.db._threadDataMap || global.db._threadDataMap._len !== global.db.allThreadData.length) {
+                if (!global.db._threadDataMap) {
+                        global.db._threadDataMap = new Map();
+                        global.db._threadDataMapVer = 0;
+                }
+                if (global.db._threadDataMapVer !== (global.db._threadDataVer || 0)) {
                         global.db._threadDataMap = new Map(global.db.allThreadData.map(t => [String(t.threadID), t]));
-                        global.db._threadDataMap._len = global.db.allThreadData.length;
+                        global.db._threadDataMapVer = global.db._threadDataVer || 0;
                 }
                 const threadData = global.db._threadDataMap.get(String(event.threadID)) || await threadsData.create(event.threadID);
                 const isEnabled = threadData.settings.badWords;

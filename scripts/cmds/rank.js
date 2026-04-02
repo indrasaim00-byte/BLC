@@ -81,7 +81,9 @@ aliases: ["رانك", "ترتيب", "rank"],
                         try {
                                 let { exp } = await e.usersData.get(senderID);
                                 if (isNaN(exp) || typeof exp !== "number") exp = 0;
-                                await e.usersData.set(senderID, { exp: exp + toAdd });
+                                const newExp = exp + toAdd;
+                                await e.usersData.set(senderID, { exp: newExp });
+                                e.lastFlushedExp = newExp;
                         } catch (err) {}
                 }, 10000);
         }
