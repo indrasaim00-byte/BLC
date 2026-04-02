@@ -116,10 +116,10 @@ module.exports.onStart = async function ({ api, event, usersData }) {
 
     ctx.font = "22px Arial";
     ctx.fillStyle = "#ffffff";
-    ctx.fillText("AVAILABLE BALANCE", boxX + boxW / 2, boxY + 50);
+    ctx.fillText("شظايا سواء 🖤", boxX + boxW / 2, boxY + 50);
 
-    ctx.font = "bold 50px Arial";
-    ctx.fillText("$" + formatted, boxX + boxW / 2, boxY + 120);
+    ctx.font = "bold 40px Arial";
+    ctx.fillText(formatted + " 🖤", boxX + boxW / 2, boxY + 120);
 
     ctx.textAlign = "left";
 

@@ -52,7 +52,7 @@ module.exports.onStart = async function ({ api, event }) {
   setUserData(senderID, userData);
 
   api.sendMessage(
-    `🎁 Daily Bonus Claimed!\n💰 +${bonus}$ added\n🏦 New Balance: ${userData.balance}$`,
+    `🎁 تم استلام المكافأة اليومية!\n💰 +${bonus} شظايا سواء 🖤 أضيفت\n🏦 رصيدك الجديد: ${userData.balance} شظايا سواء 🖤`,
     threadID,
     messageID
   );

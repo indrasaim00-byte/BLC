@@ -39,7 +39,7 @@ module.exports.onStart = async function ({ api, event, args }) {
 
   if (balance < bet)
     return api.sendMessage(
-      `❌ Not enough balance!\n🏦 Balance: ${balance}$`,
+      `❌ رصيدك غير كافٍ!\n🏦 رصيدك: ${balance} شظايا سواء 🖤`,
       threadID,
       messageID
     );
@@ -75,9 +75,9 @@ module.exports.onStart = async function ({ api, event, args }) {
   const msg =
 `${selected.text}
 
-🎰 You bet: ${bet}$
-💸 You won: ${reward}$
-💰 New balance: ${balance}$`;
+🎰 راهنت: ${bet} شظايا سواء 🖤
+💸 ربحت: ${reward} شظايا سواء 🖤
+💰 رصيدك الجديد: ${balance} شظايا سواء 🖤`;
 
   api.sendMessage(msg, threadID, messageID);
 };
