@@ -1,7 +1,7 @@
 module.exports = {
   config: {
     name: "صيانة",
-    aliases: ["maintenance", "report"],
+    aliases: ["maintenance"],
     version: "1.1",
     author: "edit",
     role: 2,
