@@ -324,12 +324,37 @@ async function asqPages(chapterUrl) {
   } catch (_) { return []; }
 }
 
+/* ─── Title similarity scorer ─── */
+function titleSimilarity(q, t) {
+  if (!q || !t) return 0;
+  const a = q.toLowerCase().trim();
+  const b = t.toLowerCase().trim();
+  if (a === b) return 1.0;
+  if (b.startsWith(a) || a.startsWith(b)) return 0.8;
+  if (b.includes(a) || a.includes(b)) return 0.6;
+  const aWords = a.split(/[\s\-_]+/).filter(w => w.length > 2);
+  const bWords = b.split(/[\s\-_]+/).filter(w => w.length > 2);
+  if (!aWords.length || !bWords.length) return 0;
+  const overlap = aWords.filter(w => bWords.some(bw => bw.includes(w) || w.includes(bw))).length;
+  if (overlap > 0) return 0.3 + Math.min(overlap / Math.max(aWords.length, bWords.length), 1) * 0.25;
+  return 0;
+}
+
+function rankByTitle(searchNames, results) {
+  return results
+    .map(res => ({ ...res, _sim: Math.max(...searchNames.map(n => titleSimilarity(n, res.title))) }))
+    .filter(r => r._sim >= 0.3)
+    .sort((a, b) => b._sim - a._sim);
+}
+
 /* ─── Arabic chapter fetcher ─── */
-async function fetchArabicChapter(searchNames, chapterNum) {
+async function fetchArabicChapter(searchNames, chapterNum, mdId) {
   const target = parseFloat(chapterNum);
+  // despair-manga — ranked by title similarity
   for (const name of searchNames) {
-    const results = await despairSearch(name);
-    for (const res of results.slice(0, 3)) {
+    const raw = await despairSearch(name);
+    const ranked = rankByTitle(searchNames, raw);
+    for (const res of ranked.slice(0, 3)) {
       try {
         const chapters = await despairChapters(res.slug);
         const found = chapters.find(c => Math.abs(c.num - target) < 0.01);
@@ -339,9 +364,11 @@ async function fetchArabicChapter(searchNames, chapterNum) {
       } catch (_) {}
     }
   }
+  // 3asq — ranked by title similarity
   for (const name of searchNames) {
-    const results = await asqSearch(name);
-    for (const res of results.slice(0, 4)) {
+    const raw = await asqSearch(name);
+    const ranked = rankByTitle(searchNames, raw);
+    for (const res of ranked.slice(0, 4)) {
       try {
         const chapters = await asqChapters(res.slug);
         const found = chapters.find(c => Math.abs(c.num - target) < 0.01);
@@ -351,10 +378,10 @@ async function fetchArabicChapter(searchNames, chapterNum) {
       } catch (_) {}
     }
   }
-  for (const name of searchNames) {
-    const mdManga = await mdSearch(name).catch(() => null);
-    if (!mdManga) continue;
-    const ch = await mdChapter(mdManga.id, chapterNum, "ar");
+  // MangaDex Arabic — use mdId directly if available, else search
+  const mdMangaId = mdId || await mdSearch(searchNames[0]).then(m => m?.id).catch(() => null);
+  if (mdMangaId) {
+    const ch = await mdChapter(mdMangaId, chapterNum, "ar");
     if (ch) {
       const pages = await mdPages(ch.id);
       if (pages.length) return { pages, source: "MangaDex 🇸🇦", referer: "https://mangadex.org/" };
@@ -363,8 +390,18 @@ async function fetchArabicChapter(searchNames, chapterNum) {
   return null;
 }
 
-async function fetchEnglishChapter(searchNames, chapterNum) {
-  for (const name of searchNames) {
+async function fetchEnglishChapter(searchNames, chapterNum, mdId) {
+  // Use mdId directly if provided, else search by name
+  const mdMangaId = mdId || await mdSearch(searchNames[0]).then(m => m?.id).catch(() => null);
+  if (mdMangaId) {
+    const ch = await mdChapter(mdMangaId, chapterNum, "en");
+    if (ch) {
+      const pages = await mdPages(ch.id);
+      if (pages.length) return { pages, source: "MangaDex 🇬🇧", referer: "https://mangadex.org/", chTitle: ch.attributes?.title || "" };
+    }
+  }
+  // fallback: try remaining names
+  for (const name of searchNames.slice(1)) {
     const mdManga = await mdSearch(name).catch(() => null);
     if (!mdManga) continue;
     const ch = await mdChapter(mdManga.id, chapterNum, "en");
@@ -378,15 +415,17 @@ async function fetchEnglishChapter(searchNames, chapterNum) {
 
 async function getArabicInfo(searchNames) {
   for (const name of searchNames) {
-    const results = await despairSearch(name);
-    for (const res of results.slice(0, 2)) {
+    const raw = await despairSearch(name);
+    const ranked = rankByTitle(searchNames, raw);
+    for (const res of ranked.slice(0, 2)) {
       const chapters = await despairChapters(res.slug);
       if (chapters.length) return { nums: chapters.map(c => c.num), source: "ديسبر مانجا", title: res.title };
     }
   }
   for (const name of searchNames) {
-    const results = await asqSearch(name);
-    for (const res of results.slice(0, 3)) {
+    const raw = await asqSearch(name);
+    const ranked = rankByTitle(searchNames, raw);
+    for (const res of ranked.slice(0, 3)) {
       const chapters = await asqChapters(res.slug);
       if (chapters.length) return { nums: chapters.map(c => c.num), source: "3عشق", title: res.title };
     }
@@ -559,6 +598,7 @@ module.exports = {
       if (isChapter) {
         const mangaTitle = exactMatch.title.english || exactMatch.title.romaji || query;
         const searchNames = [...new Set([exactMatch.title.english, exactMatch.title.romaji, query].filter(Boolean))];
+        const mdId = exactMatch.mdId || null;
         return api.sendMessage(
           `╭━━━━━━━━━━━━━━━━━╮\n` +
           `   📖 ⌯ 𝕭⃟𝗹⃪𝗮⃪𝗰⃪𝐤̰ 𝗠𝗮𝗻𝗚𝗮\n` +
@@ -572,7 +612,7 @@ module.exports = {
               commandName: this.config.name,
               type: "lang",
               author: senderID,
-              query, chapterNum, searchNames, mangaTitle
+              query, chapterNum, searchNames, mangaTitle, mdId
             });
           }
         );
@@ -635,6 +675,7 @@ module.exports = {
       const chosen = results[num - 1];
       const mangaTitle = chosen.title.english || chosen.title.romaji || query;
       const searchNames = [...new Set([chosen.title.english, chosen.title.romaji, query].filter(Boolean))];
+      const mdId = chosen.mdId || null;
 
       if (isChapter) {
         return api.sendMessage(
@@ -646,7 +687,7 @@ module.exports = {
               commandName: this.config.name,
               type: "lang",
               author: Reply.author,
-              query, chapterNum, searchNames, mangaTitle
+              query, chapterNum, searchNames, mangaTitle, mdId
             });
           }
         );
@@ -660,7 +701,7 @@ module.exports = {
 
     /* ─── اختيار لغة الفصل ─── */
     if (Reply.type === "lang") {
-      const { query, chapterNum, searchNames, mangaTitle } = Reply;
+      const { query, chapterNum, searchNames, mangaTitle, mdId } = Reply;
       if (!["ar", "en"].includes(body)) {
         return api.sendMessage("❌ ردّ بـ ar للعربية أو en للإنجليزية.", threadID);
       }
@@ -671,12 +712,12 @@ module.exports = {
 
       let result = null;
       if (body === "ar") {
-        result = await fetchArabicChapter(searchNames, chapterNum);
+        result = await fetchArabicChapter(searchNames, chapterNum, mdId);
         if (loadID) api.unsendMessage(loadID, () => {});
         if (!result) return send(api, threadID, `❌ الفصل ${chapterNum} غير متاح بالعربية لـ "${mangaTitle}".\n💡 جرب: en`);
         await sendChapterPages(api, threadID, result.pages, result.referer, mangaTitle, chapterNum, result.source, "🇸🇦 عربي");
       } else {
-        result = await fetchEnglishChapter(searchNames, chapterNum);
+        result = await fetchEnglishChapter(searchNames, chapterNum, mdId);
         if (loadID) api.unsendMessage(loadID, () => {});
         if (!result) return send(api, threadID, `❌ الفصل ${chapterNum} غير متاح بالإنجليزية لـ "${mangaTitle}".\n💡 جرب: ar`);
         await sendChapterPages(api, threadID, result.pages, result.referer, mangaTitle, chapterNum, result.source, "🇬🇧 إنجليزي", result.chTitle || "");
