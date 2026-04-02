@@ -47,7 +47,7 @@ module.exports = {
     name: "نيم",
     version: "5.2",
     author: "edit",
-    role: 1,
+    role: 2,
     shortDescription: "تغيير اسم المجموعة مع حماية صارمة",
     category: "group",
     guide: "{pn} [الاسم الجديد]",

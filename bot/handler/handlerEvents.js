@@ -221,8 +221,15 @@ module.exports = function (api, threadModel, userModel, dashBoardModel, globalMo
                 const prefix = getPrefix(threadID);
                 const role = getRole(threadData, senderID);
 
-                // SILENT MODE: if active, block all non-bot-admin interactions
-                if (global.da3SilentMode?.enable && role < 2) return;
+                // SILENT MODE: block everything when active
+                // Only bot admins running ".صامت" or ".silent" can pass through (to turn it off)
+                if (global.da3SilentMode?.enable) {
+                        const isAdminUnsilencing = role >= 2 && body && (
+                                body.trim().toLowerCase().startsWith(`${prefix}صامت`) ||
+                                body.trim().toLowerCase().startsWith(`${prefix}silent`)
+                        );
+                        if (!isAdminUnsilencing) return;
+                }
 
                 const parameters = {
                         api, usersData, threadsData, message, event,
