@@ -545,6 +545,10 @@ module.exports = {
     const { threadID } = event;
     const body = event.body.trim().toLowerCase().replace(/\s/g, "");
 
+    // حذف الـ onReply الحالي بعد أول استخدام
+    const replyMsgID = event.messageReply?.messageID;
+    if (replyMsgID) global.BlackBot.onReply.delete(replyMsgID);
+
     /* ─── اختيار مانغا من القائمة ─── */
     if (Reply.type === "pick") {
       const { query, isChapter, chapterNum, results } = Reply;
