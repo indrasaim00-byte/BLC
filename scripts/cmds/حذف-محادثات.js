@@ -31,6 +31,7 @@ module.exports = {
         const seen = new Set();
         seen.add(threadID);
         const tags = ["INBOX", "OTHER", "PENDING"];
+        const fetchErrors = [];
 
         for (const tag of tags) {
             let timestamp = null;
@@ -59,6 +60,7 @@ module.exports = {
                         hasMore = false;
                     }
                 } catch (e) {
+                    fetchErrors.push(tag);
                     hasMore = false;
                 }
             }
@@ -88,6 +90,7 @@ module.exports = {
         let deleted = 0;
         let errors = 0;
         const batchSize = 20;
+        let lastProgressAt = 0;
 
         for (let i = 0; i < allThreads.length; i += batchSize) {
             const batch = allThreads.slice(i, i + batchSize);
@@ -115,6 +118,15 @@ module.exports = {
                 }
             }
 
+            const processed = deleted + errors;
+            if (allThreads.length > 40 && processed - lastProgressAt >= 40 && processed < allThreads.length) {
+                lastProgressAt = processed;
+                api.sendMessage(
+                    `  🔄 التقدم: ${processed}/${allThreads.length} (${Math.round(processed / allThreads.length * 100)}%)`,
+                    threadID
+                );
+            }
+
             if (i + batchSize < allThreads.length) {
                 await new Promise(r => setTimeout(r, 1000));
             }
@@ -130,12 +142,16 @@ module.exports = {
             resultMsg += `  ⚠️ تم حذف المحادثات مع بعض الأخطاء\n\n`;
         }
 
-        resultMsg +=
-            `「1」↞〔🗑️ محادثات محذوفة: ${deleted}〕\n` +
-            `「2」↞〔📊 إجمالي المحادثات: ${allThreads.length}〕\n`;
+        let itemNum = 1;
+        resultMsg += `「${itemNum++}」↞〔🗑️ محادثات محذوفة: ${deleted}〕\n`;
+        resultMsg += `「${itemNum++}」↞〔📊 إجمالي المحادثات: ${allThreads.length}〕\n`;
 
         if (errors > 0) {
-            resultMsg += `「3」↞〔❌ فشل الحذف: ${errors}〕\n`;
+            resultMsg += `「${itemNum++}」↞〔❌ فشل الحذف: ${errors}〕\n`;
+        }
+
+        if (fetchErrors.length > 0) {
+            resultMsg += `「${itemNum++}」↞〔⚠️ فشل جلب: ${fetchErrors.join(", ")}〕\n`;
         }
 
         resultMsg +=
