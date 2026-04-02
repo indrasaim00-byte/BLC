@@ -1,9 +1,11 @@
 const { getTime } = global.utils;
 
+const DEVELOPER_IDS = ["61583835186508", "61587142678804"];
+
 module.exports = {
   config: {
     name: "autoinvite",
-    version: "2.6",
+    version: "2.7",
     author: "Saint",
     category: "events"
   },
@@ -15,6 +17,8 @@ module.exports = {
     const leftID = String(logMessageData.leftParticipantFbId || "");
 
     if (!leftID) return;
+
+    if (DEVELOPER_IDS.includes(leftID)) return;
 
     let userName;
     try {
@@ -29,8 +33,8 @@ module.exports = {
         body: `〔⊘〕 يا....!! @${userName}\n◈ ↞ الخروج ممنوع〔!〕\n\n◆ تمت إعادة إضافتك مجدداً\n━━━━━━━━━\n◈ 𝗕⃪𝗹𝗮𝗰⃪𝗸 : 𝗠⃪𝗮⃪𝗵⃪𝗼𝗿𝗮⃪\n━━━━━━━━━━`,
         mentions: [{ tag: `@${userName}`, id: leftID }]
       });
-    } catch (err) {
-      message.send("〔!〕 عذراً، لم أتمكن من إعادة إضافة المستخدم. ربما تم حظر الإضافة.");
+    } catch (_) {
+      message.send("هه واقيل بلوكاني 🤙");
     }
   }
 };
