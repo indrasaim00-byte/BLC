@@ -435,6 +435,91 @@ function isPromptInjection(text) {
   );
 }
 
+function cleanZakhraf(text) {
+  if (!text || typeof text !== "string") return text;
+
+  // تحويل حروف الرياضيات الفانسي إلى ASCII عادي
+  function mathToAscii(str) {
+    return [...str].map(ch => {
+      const cp = ch.codePointAt(0);
+      if (!cp || cp < 0x1D000) return ch;
+      // Bold A-Z / a-z
+      if (cp >= 0x1D400 && cp <= 0x1D419) return String.fromCharCode(cp - 0x1D400 + 65);
+      if (cp >= 0x1D41A && cp <= 0x1D433) return String.fromCharCode(cp - 0x1D41A + 97);
+      // Italic A-Z / a-z
+      if (cp >= 0x1D434 && cp <= 0x1D44D) return String.fromCharCode(cp - 0x1D434 + 65);
+      if (cp >= 0x1D44E && cp <= 0x1D467) return String.fromCharCode(cp - 0x1D44E + 97);
+      // Bold Italic A-Z / a-z
+      if (cp >= 0x1D468 && cp <= 0x1D481) return String.fromCharCode(cp - 0x1D468 + 65);
+      if (cp >= 0x1D482 && cp <= 0x1D49B) return String.fromCharCode(cp - 0x1D482 + 97);
+      // Script / Bold Script
+      if (cp >= 0x1D49C && cp <= 0x1D4CF) return String.fromCharCode(((cp - 0x1D49C) % 26) + 65);
+      if (cp >= 0x1D4D0 && cp <= 0x1D503) return String.fromCharCode(((cp - 0x1D4D0) % 26) + 65);
+      // Fraktur
+      if (cp >= 0x1D504 && cp <= 0x1D537) return String.fromCharCode(((cp - 0x1D504) % 52) < 26 ? ((cp - 0x1D504) % 52) + 65 : ((cp - 0x1D504) % 52) - 26 + 97);
+      // Double-struck
+      if (cp >= 0x1D538 && cp <= 0x1D56B) return String.fromCharCode(((cp - 0x1D538) % 52) < 26 ? ((cp - 0x1D538) % 52) + 65 : ((cp - 0x1D538) % 52) - 26 + 97);
+      // Sans-serif A-Z / a-z
+      if (cp >= 0x1D5A0 && cp <= 0x1D5B9) return String.fromCharCode(cp - 0x1D5A0 + 65);
+      if (cp >= 0x1D5BA && cp <= 0x1D5D3) return String.fromCharCode(cp - 0x1D5BA + 97);
+      // Sans-serif Bold
+      if (cp >= 0x1D5D4 && cp <= 0x1D5ED) return String.fromCharCode(cp - 0x1D5D4 + 65);
+      if (cp >= 0x1D5EE && cp <= 0x1D607) return String.fromCharCode(cp - 0x1D5EE + 97);
+      // Sans-serif Italic / Bold Italic
+      if (cp >= 0x1D608 && cp <= 0x1D63B) return String.fromCharCode(((cp - 0x1D608) % 52) < 26 ? ((cp - 0x1D608) % 52) + 65 : ((cp - 0x1D608) % 52) - 26 + 97);
+      // Monospace
+      if (cp >= 0x1D670 && cp <= 0x1D689) return String.fromCharCode(cp - 0x1D670 + 65);
+      if (cp >= 0x1D68A && cp <= 0x1D6A3) return String.fromCharCode(cp - 0x1D68A + 97);
+      // Mathematical digits → 0-9
+      if (cp >= 0x1D7CE && cp <= 0x1D7FF) return String.fromCharCode((cp - 0x1D7CE) % 10 + 48);
+      return "";
+    }).join("");
+  }
+
+  let s = mathToAscii(text);
+
+  s = s
+    // صفر-عرض وأحرف غير مرئية
+    .replace(/[\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF\u00AD]/g, "")
+    // علامات تشكيل عربية (تنوين + حركات)
+    .replace(/[\u064B-\u065F\u0670\u0610-\u061A]/g, "")
+    // حروف عربية صغيرة زخرفية
+    .replace(/[\u06D6-\u06DC\u06DF-\u06E4\u06E7-\u06E8\u06EA-\u06ED]/g, "")
+    // تطويل (كشيدة)
+    .replace(/\u0640+/g, "")
+    // علامات جمع Latin combining
+    .replace(/[\u0300-\u036F]/g, "")
+    .replace(/[\u1AB0-\u1AFF]/g, "")
+    .replace(/[\u1DC0-\u1DFF]/g, "")
+    .replace(/[\u20D0-\u20FF]/g, "")
+    .replace(/[\uFE20-\uFE2F]/g, "")
+    // علامات فيديك وسنسكريت وغيرها تستخدم للزينة
+    .replace(/[\u1CD0-\u1CFF]/g, "")
+    .replace(/[\uA8E0-\uA8FF]/g, "")
+    // Meetei Mayek / Balinese / Sundanese decorative
+    .replace(/[\u1B00-\u1B3F]/g, "")
+    .replace(/[\uAAEC-\uAAFF]/g, "")
+    .replace(/[\uA900-\uA92F]/g, "")
+    // variation selectors
+    .replace(/[\uFE00-\uFE0F]/g, "")
+    .replace(/[\uDB40][\uDD00-\uDDEF]/g, "")
+    // حرف ک الفارسي والكاف الفانسي → ك
+    .replace(/[\u06A9\u06AA\u06AB]/g, "\u0643")
+    // يا غير قياسية → ي
+    .replace(/[\u06CC\u0649\u06D2]/g, "\u064A")
+    // همزات موحدة
+    .replace(/[\u0622\u0623\u0625]/g, "\u0627")
+    // رموز تزيينية غير هادفة (من نطاقات أخرى)
+    .replace(/[\u2010-\u2027\u2030-\u205E\u2062-\u2064]/g, "")
+    // أرقام Superscript/Subscript
+    .replace(/[\u00B2\u00B3\u00B9\u2070-\u2079\u2080-\u2089]/g, "")
+    // مسافات متعددة
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return s;
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -533,18 +618,21 @@ async function processMessage(api, event, commandName, historyKey, input) {
     return;
   }
 
-  if (isCopyThreat(input)) {
+  const cleaned = cleanZakhraf(input);
+  const aiInput = cleaned && cleaned.length > 0 ? cleaned : input;
+
+  if (isCopyThreat(aiInput)) {
     await handleCopyThreat(api, threadID, messageID);
     return;
   }
 
-  if (isPromptInjection(input)) {
+  if (isPromptInjection(aiInput)) {
     await sendWithTypingDelay(api, `ما عندي وقت لهاذ الكلام 😒`, threadID, null, messageID);
     return;
   }
 
   const profile = getProfile(senderID);
-  const detectedGender = detectGenderFromText(input);
+  const detectedGender = detectGenderFromText(aiInput);
   if (detectedGender && profile.gender === 'unknown') {
     profile.gender = detectedGender;
     const umem = getUserMem(senderID);
@@ -553,13 +641,13 @@ async function processMessage(api, event, commandName, historyKey, input) {
   }
 
   fetchUserName(api, senderID).catch(() => {});
-  detectNameFromText(input, senderID);
-  extractFacts(input, senderID, threadID);
+  detectNameFromText(aiInput, senderID);
+  extractFacts(aiInput, senderID, threadID);
 
   if (!conversationHistory.has(historyKey)) conversationHistory.set(historyKey, []);
   const history = conversationHistory.get(historyKey);
 
-  history.push({ role: "user", parts: [{ text: input }] });
+  history.push({ role: "user", parts: [{ text: aiInput }] });
   if (history.length > 20) history.splice(0, history.length - 20);
 
   try {
