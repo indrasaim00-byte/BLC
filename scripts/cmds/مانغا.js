@@ -55,15 +55,35 @@ async function translateAr(text) {
 }
 
 async function dlImage(url, fp, referer) {
-  try {
-    fs.ensureDirSync(path.dirname(fp));
-    const headers = referer ? { ...BASE_HEADERS, Referer: referer } : BASE_HEADERS;
-    const r = await axios.get(url.trim(), { responseType: "arraybuffer", timeout: 20000, headers });
-    const ct = r.headers["content-type"] || "";
-    if (!ct.includes("image") && !ct.includes("octet-stream")) return null;
-    fs.writeFileSync(fp, Buffer.from(r.data));
-    return fp;
-  } catch (_) { return null; }
+  const cleanUrl = url.trim();
+  fs.ensureDirSync(path.dirname(fp));
+
+  const attempts = [
+    referer ? referer : null,
+    "https://3asq.org/",
+    "https://despair-manga.net/",
+    "https://google.com/"
+  ].filter(Boolean);
+
+  for (const ref of attempts) {
+    try {
+      const headers = {
+        ...BASE_HEADERS,
+        "Referer": ref,
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "Sec-Fetch-Dest": "image",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Site": "cross-site"
+      };
+      const r = await axios.get(cleanUrl, { responseType: "arraybuffer", timeout: 25000, headers });
+      const ct = r.headers["content-type"] || "";
+      const size = r.data?.byteLength || 0;
+      if ((!ct.includes("image") && !ct.includes("octet-stream")) || size < 1000) continue;
+      fs.writeFileSync(fp, Buffer.from(r.data));
+      return fp;
+    } catch (_) {}
+  }
+  return null;
 }
 
 async function send(api, threadID, body, attachment) {
@@ -150,13 +170,37 @@ async function asqChapters(slug) {
 
 async function asqPages(chapterUrl) {
   try {
-    const r = await axios.get(chapterUrl, { timeout: 10000, headers: BASE_HEADERS });
+    const r = await axios.get(chapterUrl, {
+      timeout: 12000,
+      headers: { ...BASE_HEADERS, Referer: "https://3asq.org/" }
+    });
+
+    // try ts_reader.run first (same as despair)
+    const tsMatch = r.data.match(/ts_reader\.run\((\{[\s\S]*?\})\)/);
+    if (tsMatch) {
+      try {
+        const data = JSON.parse(tsMatch[1]);
+        const imgs = data.sources?.[0]?.images || [];
+        if (imgs.length) return imgs.map(i => i.startsWith("http") ? i : "https://3asq.org" + i);
+      } catch (_) {}
+    }
+
     const $ = cheerio.load(r.data);
     const pages = [];
-    $(".reading-content img, .wp-manga-chapter-img, img[data-src]").each((_, el) => {
-      const src = ($(el).attr("data-src") || $(el).attr("data-lazy-src") || $(el).attr("src") || "").trim();
-      if (src && src.startsWith("http") && !src.includes("placeholder") && !src.includes("logo")) pages.push(src);
+
+    $(".reading-content img, .wp-manga-chapter-img, .page-break img, .chapter-content img, img[data-src], img[data-lazy-src]").each((_, el) => {
+      const src = (
+        $(el).attr("data-src") ||
+        $(el).attr("data-lazy-src") ||
+        $(el).attr("data-original") ||
+        $(el).attr("data-url") ||
+        $(el).attr("src") || ""
+      ).trim();
+      if (src && src.startsWith("http") && !src.includes("placeholder") && !src.includes("logo") && !src.includes("data:")) {
+        pages.push(src);
+      }
     });
+
     return [...new Set(pages)];
   } catch (_) { return []; }
 }
