@@ -555,11 +555,17 @@ async function callAI(history, apiKey, senderID, threadID) {
 }
 
 async function sendWithTypingDelay(api, text, threadID, callback, messageID) {
-  try { api.sendTypingIndicator(threadID); } catch (_) {}
-  const delay = calcTypingDelay(text);
-  await sleep(delay);
-  try { api.sendTypingIndicator(threadID, false); } catch (_) {}
-  api.sendMessage(text, threadID, callback, messageID);
+  return new Promise((resolve) => {
+    api.sendMessage(text, threadID, (err, info) => {
+      if (err) {
+        console.error("[بلاك] sendMessage error:", err);
+      }
+      if (callback) {
+        try { callback(err, info); } catch (_) {}
+      }
+      resolve(info);
+    }, messageID);
+  });
 }
 
 
@@ -653,7 +659,13 @@ module.exports = {
     countDown: 5
   },
 
-  onStart: async function () {},
+  onStart: async function ({ api, event, commandName, args }) {
+    const input = (args || []).join(" ").trim();
+    if (!input) return;
+    const { threadID, senderID } = event;
+    const historyKey = `${threadID}_${senderID}`;
+    await processMessage(api, event, commandName, historyKey, input);
+  },
 
   onChat: async function ({ api, event, commandName }) {
     const body = (event.body || "").trim();
