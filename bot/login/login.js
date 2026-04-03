@@ -586,6 +586,14 @@ async function startBot(_0x3cad9e) {
     }, global.BlackBot.config.optionsFca, async function (_0x3f689f, _0x4d5048) {
       global.BlackBot.fcaApi = _0x4d5048;
       global.BlackBot.botID = _0x4d5048.getCurrentUserID();
+      try {
+        if (_0x4d5048.e2ee && typeof _0x4d5048.e2ee.enable === "function") {
+          _0x4d5048.e2ee.enable();
+          log.info("E2EE", "تم تفعيل التشفير من طرف إلى طرف (E2EE) للرسائل الخاصة");
+        }
+      } catch (_e2eeErr) {
+        log.warn("E2EE", "تعذّر تفعيل E2EE: " + _e2eeErr.message);
+      }
       log.info("LOGIN FACEBOOK", getText("login", 'loginSuccess'));
       let _0x70f374 = false;
       global.botID = _0x4d5048.getCurrentUserID();
