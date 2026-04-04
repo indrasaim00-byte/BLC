@@ -5,6 +5,7 @@ const path = require("path");
 let pingTimer = null;
 let saveTimer = null;
 let inboxTimer = null;
+let selfPingTimer = null;
 
 function getRandomMs(minMinutes, maxMinutes) {
   const minMs = minMinutes * 60 * 1000;
@@ -40,10 +41,6 @@ async function doPing() {
         "accept-encoding": "gzip, deflate, br",
         "connection": "keep-alive",
         "upgrade-insecure-requests": "1",
-        "sec-fetch-dest": "document",
-        "sec-fetch-mode": "navigate",
-        "sec-fetch-site": "none",
-        "sec-fetch-user": "?1",
         "cache-control": "max-age=0",
       },
       timeout: 15000,
@@ -52,6 +49,19 @@ async function doPing() {
     global.utils.log.info("KEEP_ALIVE", "✅ Ping sent — account stays active");
   } catch (e) {
     global.utils.log.warn("KEEP_ALIVE", "⚠️ Ping failed: " + (e.message || e));
+  }
+}
+
+async function doSelfPing() {
+  try {
+    const domain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(",")[0];
+    if (!domain) return;
+
+    const url = `https://${domain}/`;
+    await axios.get(url, { timeout: 10000 });
+    global.utils.log.info("KEEP_ALIVE", "🔄 Self-ping sent — Replit awake");
+  } catch (e) {
+    // silent fail
   }
 }
 
@@ -78,13 +88,20 @@ async function doSaveCookies() {
 
 function schedulePing() {
   if (pingTimer) clearTimeout(pingTimer);
-  const delay = getRandomMs(8, 18);
+  const delay = getRandomMs(4, 8);
   const minutes = Math.round(delay / 60000);
   pingTimer = setTimeout(async () => {
     await doPing();
     schedulePing();
   }, delay);
   global.utils.log.info("KEEP_ALIVE", `🔔 Next ping in ${minutes} min`);
+}
+
+function scheduleSelfPing() {
+  if (selfPingTimer) clearInterval(selfPingTimer);
+  selfPingTimer = setInterval(async () => {
+    await doSelfPing();
+  }, 4 * 60 * 1000);
 }
 
 function scheduleSave() {
@@ -133,23 +150,29 @@ module.exports = function startKeepAlive() {
   if (pingTimer) clearTimeout(pingTimer);
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
+  if (selfPingTimer) clearInterval(selfPingTimer);
 
   global.utils.log.info(
     "KEEP_ALIVE",
-    "🚀 Keep-alive started | Ping every 8–18 min | Cookies saved every 6h"
+    "🚀 Keep-alive started | Ping every 4–8 min | Self-ping every 4 min | Cookies saved every 6h"
   );
 
   schedulePing();
   scheduleSave();
+  scheduleSelfPing();
   doAcceptInbox();
   scheduleInbox();
+
+  doSelfPing();
 };
 
 module.exports.stop = function () {
   if (pingTimer) clearTimeout(pingTimer);
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
+  if (selfPingTimer) clearInterval(selfPingTimer);
   pingTimer = null;
   saveTimer = null;
   inboxTimer = null;
+  selfPingTimer = null;
 };

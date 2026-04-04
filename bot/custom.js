@@ -15,8 +15,8 @@ module.exports = async function ({ api, threadModel, userModel, dashBoardModel, 
 
         startKeepAlive();
 
-        const HEAP_LIMIT_MB = 420;
-        const RSS_LIMIT_MB = 550;
+        const HEAP_LIMIT_MB = 460;
+        const RSS_LIMIT_MB = 600;
         const MEMORY_CHECK_INTERVAL = 5 * 60 * 1000;
 
         setInterval(() => {
