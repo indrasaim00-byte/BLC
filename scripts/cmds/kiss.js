@@ -226,7 +226,7 @@ module.exports = {
                         const img1Path = path.join(tmpDir, "img1.jpg");
                         const img2Path = path.join(tmpDir, "img2.jpg");
 
-                        await message.reply("🤖 | جاري التحريك بالذكاء الاصطناعي...");
+                        await message.reply("⏳ | جاري إنشاء الفيديو...");
 
                         await Promise.all([
                                 fetchProfilePic(senderID, img1Path),
