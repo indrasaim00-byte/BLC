@@ -6,11 +6,20 @@ let pingTimer = null;
 let saveTimer = null;
 let inboxTimer = null;
 let selfPingTimer = null;
+let watchdogTimer = null;
+
+let lastMessageTime = Date.now();
+const WATCHDOG_SILENCE_MS = 5 * 60 * 1000;
+const WATCHDOG_CHECK_MS = 2 * 60 * 1000;
 
 function getRandomMs(minMinutes, maxMinutes) {
   const minMs = minMinutes * 60 * 1000;
   const maxMs = maxMinutes * 60 * 1000;
   return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+}
+
+function recordMessageActivity() {
+  lastMessageTime = Date.now();
 }
 
 async function doPing() {
@@ -36,11 +45,10 @@ async function doPing() {
       headers: {
         "cookie": cookieStr,
         "user-agent": userAgent,
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "accept-language": "ar,en-US;q=0.8,en;q=0.5",
         "accept-encoding": "gzip, deflate, br",
         "connection": "keep-alive",
-        "upgrade-insecure-requests": "1",
         "cache-control": "max-age=0",
       },
       timeout: 15000,
@@ -54,15 +62,10 @@ async function doPing() {
 
 async function doSelfPing() {
   try {
-    const domain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS?.split(",")[0];
+    const domain = process.env.REPLIT_DEV_DOMAIN || (process.env.REPLIT_DOMAINS || "").split(",")[0];
     if (!domain) return;
-
-    const url = `https://${domain}/`;
-    await axios.get(url, { timeout: 10000 });
-    global.utils.log.info("KEEP_ALIVE", "🔄 Self-ping sent — Replit awake");
-  } catch (e) {
-    // silent fail
-  }
+    await axios.get(`https://${domain}/`, { timeout: 10000 });
+  } catch (_) {}
 }
 
 async function doSaveCookies() {
@@ -86,6 +89,32 @@ async function doSaveCookies() {
   }
 }
 
+async function doWatchdog() {
+  try {
+    const silenceMs = Date.now() - lastMessageTime;
+    if (silenceMs > WATCHDOG_SILENCE_MS) {
+      global.utils.log.warn("WATCHDOG", `⚠️ No activity for ${Math.round(silenceMs / 60000)} min — forcing MQTT reconnect...`);
+      const api = global.BlackBot.fcaApi;
+      if (api && typeof api.listenMqtt === "function") {
+        try {
+          if (global.BlackBot.Listening && typeof global.BlackBot.Listening.stopListening === "function") {
+            global.BlackBot.Listening.stopListening();
+          }
+        } catch (_) {}
+        setTimeout(() => {
+          try {
+            process.exit(2);
+          } catch (_) {}
+        }, 2000);
+      } else {
+        process.exit(2);
+      }
+    }
+  } catch (e) {
+    global.utils.log.warn("WATCHDOG", "⚠️ Watchdog error: " + (e.message || e));
+  }
+}
+
 function schedulePing() {
   if (pingTimer) clearTimeout(pingTimer);
   const delay = getRandomMs(4, 8);
@@ -99,17 +128,17 @@ function schedulePing() {
 
 function scheduleSelfPing() {
   if (selfPingTimer) clearInterval(selfPingTimer);
-  selfPingTimer = setInterval(async () => {
-    await doSelfPing();
-  }, 4 * 60 * 1000);
+  selfPingTimer = setInterval(doSelfPing, 4 * 60 * 1000);
 }
 
 function scheduleSave() {
   if (saveTimer) clearInterval(saveTimer);
-  const interval = 6 * 60 * 60 * 1000;
-  saveTimer = setInterval(async () => {
-    await doSaveCookies();
-  }, interval);
+  saveTimer = setInterval(doSaveCookies, 6 * 60 * 60 * 1000);
+}
+
+function scheduleWatchdog() {
+  if (watchdogTimer) clearInterval(watchdogTimer);
+  watchdogTimer = setInterval(doWatchdog, WATCHDOG_CHECK_MS);
 }
 
 async function doAcceptInbox() {
@@ -119,7 +148,6 @@ async function doAcceptInbox() {
     if (global.BlackBot.config.antiInbox === true) return;
 
     let accepted = 0;
-
     for (const folder of ["PENDING", "OTHER"]) {
       try {
         const threads = await api.getThreadList(50, null, [folder]);
@@ -135,7 +163,6 @@ async function doAcceptInbox() {
         }
       } catch (e) {}
     }
-
     if (accepted > 0)
       global.utils.log.info("INBOX", `✅ قبلت ${accepted} رسالة خاص معلقة`);
   } catch (e) {}
@@ -151,18 +178,21 @@ module.exports = function startKeepAlive() {
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
   if (selfPingTimer) clearInterval(selfPingTimer);
+  if (watchdogTimer) clearInterval(watchdogTimer);
+
+  lastMessageTime = Date.now();
 
   global.utils.log.info(
     "KEEP_ALIVE",
-    "🚀 Keep-alive started | Ping every 4–8 min | Self-ping every 4 min | Cookies saved every 6h"
+    "🚀 Keep-alive started | Ping 4–8m | Self-ping 4m | Watchdog 2m | Cookies 6h"
   );
 
   schedulePing();
   scheduleSave();
   scheduleSelfPing();
+  scheduleWatchdog();
   doAcceptInbox();
   scheduleInbox();
-
   doSelfPing();
 };
 
@@ -171,8 +201,12 @@ module.exports.stop = function () {
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
   if (selfPingTimer) clearInterval(selfPingTimer);
+  if (watchdogTimer) clearInterval(watchdogTimer);
   pingTimer = null;
   saveTimer = null;
   inboxTimer = null;
   selfPingTimer = null;
+  watchdogTimer = null;
 };
+
+module.exports.recordActivity = recordMessageActivity;
