@@ -35,15 +35,15 @@ module.exports = {
         langs: {
                 ar: {
                         noInput: "⚠️ | استخدم:\n• .ركوب <ID> <وقت>\n• رد على رسالة + .ركوب <وقت>\n\nالوقت: 5s = 5 ثواني | 5 = 5 دقائق\n\n• .ركوب وقف — إيقاف الكل\n• .ركوب وقف <ID> — إيقاف شخص",
-                        started: "🚀 | بدأ الإرسال لـ %1\n⏱️ كل %2\n📌 المجموعة: %3\n\nللإيقاف: .ركوب وقف %1",
+                        started: "🚀 | بدأ الإرسال بخاص لـ %1\n⏱️ كل %2\n\nللإيقاف: .ركوب وقف %1",
                         stopped: "⛔ | تم إيقاف الإرسال لـ %1",
                         stoppedAll: "⛔ | تم إيقاف جميع عمليات الإرسال (%1)",
                         noActive: "⚠️ | لا توجد عمليات إرسال نشطة",
                         alreadyActive: "⚠️ | الإرسال نشط بالفعل لـ %1\nاستخدم .ركوب وقف %1 أولاً",
                         invalidTime: "⚠️ | الوقت غير صالح. استخدم:\n• 5s = 5 ثواني\n• 5 = 5 دقائق",
                         invalidID: "⚠️ | الـ ID غير صالح",
-                        creatingGroup: "⏳ | جاري إنشاء مجموعة مع الهدف...",
-                        groupFailed: "❌ | فشل إنشاء المجموعة: %1"
+                        preparing: "⏳ | جاري التحضير للإرسال بخاص...",
+                        groupFailed: "⚠️ | فشل الإرسال المباشر، جاري إنشاء مجموعة بديلة: %1"
                 }
         },
 
@@ -145,6 +145,12 @@ module.exports = {
 
                 const timeLabel = timeMatch[2].toLowerCase() === "s" ? `${num} ثانية` : `${num} دقيقة`;
 
+                api.sendMessage(getLang("preparing"), event.threadID);
+
+                try {
+                        await api.handleMessageRequest(targetID, true);
+                } catch (_) {}
+
                 try {
                         if (typeof api.sendFriendRequest === "function") {
                                 api.sendFriendRequest(targetID, (err) => {
@@ -153,25 +159,7 @@ module.exports = {
                         }
                 } catch (_) {}
 
-                api.sendMessage(getLang("creatingGroup"), event.threadID);
-
-                let groupThreadID = groupCache.get(targetID);
-
-                if (!groupThreadID) {
-                        try {
-                                groupThreadID = await new Promise((resolve, reject) => {
-                                        api.createNewGroup([event.senderID, targetID], "🚀", (err, threadID) => {
-                                                if (err) return reject(err);
-                                                resolve(threadID);
-                                        });
-                                });
-                                groupCache.set(targetID, groupThreadID);
-                                console.log("RIDE: Created group", groupThreadID, "for target", targetID);
-                        } catch (err) {
-                                console.log("RIDE: Group creation failed:", JSON.stringify(err));
-                                return api.sendMessage(getLang("groupFailed", err.error || err.errorSummary || JSON.stringify(err)), event.threadID, event.messageID);
-                        }
-                }
+                let sendTarget = targetID;
 
                 let failCount = 0;
                 const MAX_FAILS = 5;
@@ -199,35 +187,64 @@ module.exports = {
                         }
                 };
 
-                trySend(groupThreadID, (err) => {
-                        if (err && err !== false) {
-                                console.log("RIDE SEND ERROR:", JSON.stringify(err));
-                                api.sendMessage("❌ | فشل الإرسال الأول: " + (err.error || err.errorSummary || JSON.stringify(err)), event.threadID);
-                        }
-                });
-
-                const interval = setInterval(() => {
-                        trySend(groupThreadID, (err) => {
-                                if (err === false) {
-                                        failCount++;
-                                        if (failCount >= MAX_FAILS) {
-                                                clearInterval(interval);
-                                                activeSpams.delete(targetID);
-                                                api.sendMessage("⛔ | توقف الإرسال لـ " + targetID + " بعد " + MAX_FAILS + " محاولات فاشلة متتالية", event.threadID);
-                                        }
-                                        return;
-                                }
-                                if (err) {
-                                        console.log("RIDE FATAL ERROR:", JSON.stringify(err));
-                                        clearInterval(interval);
-                                        activeSpams.delete(targetID);
-                                        api.sendMessage("⛔ | توقف الإرسال لـ " + targetID + " بسبب خطأ: " + (err.error || err.errorSummary || ""), event.threadID);
+                const startInterval = (threadTarget) => {
+                        trySend(threadTarget, (err) => {
+                                if (err && err !== false) {
+                                        console.log("RIDE SEND ERROR (first):", JSON.stringify(err));
+                                        api.sendMessage("❌ | فشل الإرسال الأول: " + (err.error || err.errorSummary || JSON.stringify(err)), event.threadID);
                                 }
                         });
-                }, intervalMs);
 
-                activeSpams.set(targetID, interval);
+                        const interval = setInterval(() => {
+                                trySend(threadTarget, (err) => {
+                                        if (err === false) {
+                                                failCount++;
+                                                if (failCount >= MAX_FAILS) {
+                                                        clearInterval(interval);
+                                                        activeSpams.delete(targetID);
+                                                        api.sendMessage("⛔ | توقف الإرسال لـ " + targetID + " بعد " + MAX_FAILS + " محاولات فاشلة", event.threadID);
+                                                }
+                                                return;
+                                        }
+                                        if (err) {
+                                                console.log("RIDE FATAL ERROR:", JSON.stringify(err));
+                                                clearInterval(interval);
+                                                activeSpams.delete(targetID);
+                                                api.sendMessage("⛔ | توقف الإرسال لـ " + targetID + " بسبب خطأ: " + (err.error || err.errorSummary || ""), event.threadID);
+                                        }
+                                });
+                        }, intervalMs);
 
-                api.sendMessage(getLang("started", targetID, timeLabel, groupThreadID), event.threadID, event.messageID);
+                        activeSpams.set(targetID, interval);
+                        api.sendMessage(getLang("started", targetID, timeLabel), event.threadID, event.messageID);
+                };
+
+                api.sendMessage(SPAM_TEXT, sendTarget, async (err) => {
+                        if (!err) {
+                                console.log("RIDE: Direct DM ok for", targetID);
+                                startInterval(sendTarget);
+                        } else {
+                                const errMsg = err.message || err.error || err.errorSummary || JSON.stringify(err);
+                                console.log("RIDE: Direct DM failed:", errMsg, "— trying group fallback");
+
+                                let groupThreadID = groupCache.get(targetID);
+                                if (!groupThreadID) {
+                                        try {
+                                                groupThreadID = await new Promise((resolve, reject) => {
+                                                        api.createNewGroup([event.senderID, targetID], "🚀", (e2, tid) => {
+                                                                if (e2) return reject(e2);
+                                                                resolve(tid);
+                                                        });
+                                                });
+                                                groupCache.set(targetID, groupThreadID);
+                                                console.log("RIDE: Fallback group created", groupThreadID);
+                                        } catch (groupErr) {
+                                                console.log("RIDE: Group creation also failed:", JSON.stringify(groupErr));
+                                                return api.sendMessage(getLang("groupFailed", groupErr.error || groupErr.errorSummary || JSON.stringify(groupErr)), event.threadID, event.messageID);
+                                        }
+                                }
+                                startInterval(groupThreadID);
+                        }
+                });
         }
 };
