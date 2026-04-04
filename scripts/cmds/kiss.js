@@ -158,12 +158,13 @@ module.exports = {
                         const senderID = event.senderID;
                         await message.reply("⏳ | جاري إنشاء الفيديو...");
 
-                        const pic1Url = `https://graph.facebook.com/${senderID}/picture?width=720&height=720&type=large`;
-                        const pic2Url = `https://graph.facebook.com/${targetID}/picture?width=720&height=720&type=large`;
+                        const TOKEN = "6628568379%7Cc1e620fa708a1d5696fb991c1bde5662";
+                        const pic1Url = `https://graph.facebook.com/${senderID}/picture?width=720&height=720&access_token=${TOKEN}`;
+                        const pic2Url = `https://graph.facebook.com/${targetID}/picture?width=720&height=720&access_token=${TOKEN}`;
 
                         const [res1, res2] = await Promise.all([
-                                axios.get(pic1Url, { responseType: "arraybuffer", timeout: 12000 }),
-                                axios.get(pic2Url, { responseType: "arraybuffer", timeout: 12000 })
+                                axios.get(pic1Url, { responseType: "arraybuffer", timeout: 12000, maxRedirects: 10 }),
+                                axios.get(pic2Url, { responseType: "arraybuffer", timeout: 12000, maxRedirects: 10 })
                         ]);
 
                         const tmpDir = path.join(__dirname, `kiss_tmp_${Date.now()}`);
