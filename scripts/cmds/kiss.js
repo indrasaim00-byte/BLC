@@ -2,18 +2,16 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const { createCanvas, loadImage } = require("canvas");
-const { execSync, spawnSync } = require("child_process");
+const { execSync } = require("child_process");
 
 const HF_TOKEN = process.env.HF_TOKEN;
 const FB_TOKEN = "6628568379%7Cc1e620fa708a1d5696fb991c1bde5662";
-const SVD_MODEL = "stabilityai/stable-video-diffusion-img2vid-xt-1-1";
 
 function easeInOut(t) {
         return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
-
-function lerp(a, b, t) {
-        return a + (b - a) * t;
+function easeOut(t) {
+        return 1 - Math.pow(1 - t, 3);
 }
 
 async function fetchProfilePic(userID, savePath) {
@@ -22,187 +20,230 @@ async function fetchProfilePic(userID, savePath) {
         fs.writeFileSync(savePath, Buffer.from(res.data));
 }
 
-async function animateWithSVD(imagePath) {
-        const imageBuffer = fs.readFileSync(imagePath);
-        const res = await axios.post(
-                `https://api-inference.huggingface.co/models/${SVD_MODEL}`,
-                imageBuffer,
-                {
-                        headers: {
-                                Authorization: `Bearer ${HF_TOKEN}`,
-                                "Content-Type": "image/jpeg",
-                                "x-wait-for-model": "true"
-                        },
-                        responseType: "arraybuffer",
-                        timeout: 240000
+async function detectFace(imagePath) {
+        try {
+                const imageBuffer = fs.readFileSync(imagePath);
+                const res = await axios.post(
+                        "https://api-inference.huggingface.co/models/facebook/detr-resnet-50",
+                        imageBuffer,
+                        {
+                                headers: {
+                                        Authorization: `Bearer ${HF_TOKEN}`,
+                                        "Content-Type": "image/jpeg",
+                                        "x-wait-for-model": "true"
+                                },
+                                timeout: 45000
+                        }
+                );
+                const items = res.data || [];
+                const person = items.find(d => d.label === "person");
+                if (person && person.box) {
+                        return person.box;
                 }
-        );
-        return Buffer.from(res.data);
+        } catch (e) {
+                console.error("[قبلة][FaceDetect]", e.message);
+        }
+        return null;
 }
 
-function buildAIVideo(vid1Path, vid2Path, outputPath, senderName, targetName) {
-        const heartText = `${senderName} 💋 ${targetName}`;
-        const safe = heartText.replace(/'/g, "\\'").replace(/:/g, "\\:");
+function cropFaceImage(ctx, img, box, imgW, imgH, destX, destY, destW, destH, mirrorX) {
+        const srcX = box ? Math.max(0, box.xmin * img.width / imgW) : 0;
+        const srcY = box ? Math.max(0, box.ymin * img.height / imgH * 0.5) : 0;
+        const srcW = box ? Math.min(img.width - srcX, (box.xmax - box.xmin) * img.width / imgW) : img.width;
+        const srcH = box ? Math.min(img.height - srcY, (box.ymax - box.ymin) * img.height / imgH * 1.3) : img.height;
 
-        execSync(
-                `ffmpeg -y -i "${vid1Path}" -i "${vid2Path}" -filter_complex "
-[0:v]scale=390:440,hflip,setpts=PTS-STARTPTS[left];
-[1:v]scale=390:440,setpts=PTS-STARTPTS[right];
-[left][right]hstack=inputs=2[stacked];
-[stacked]zoompan=z='if(lte(on,1),1,min(1.45,zoom+0.008))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=780x440:fps=14[zoomed];
-[zoomed]drawtext=text='${safe}':fontsize=22:fontcolor=white:x=(w-text_w)/2:y=h-40:shadowcolor=black:shadowx=1:shadowy=1[out]
-" -map "[out]" -c:v libx264 -preset fast -crf 20 -pix_fmt yuv420p "${outputPath}"`,
-                { timeout: 120000 }
-        );
+        ctx.save();
+        if (mirrorX) {
+                ctx.scale(-1, 1);
+                ctx.drawImage(img, srcX, srcY, srcW, srcH, -destX - destW, destY, destW, destH);
+        } else {
+                ctx.drawImage(img, srcX, srcY, srcW, srcH, destX, destY, destW, destH);
+        }
+        ctx.restore();
 }
 
-function drawSplitFrame(ctx, img1, img2, W, H, progress) {
-        ctx.fillStyle = "#000000";
+function drawRomanticFrame(ctx, img1, img2, box1, box2, W, H, progress, senderName, targetName) {
+        const phase1 = 0.25;
+        const phase2 = 0.60;
+        const phase3 = 0.80;
+        const phase4 = 1.00;
+
+        let bgAlpha, faceScale, faceOffset, heartCount, flashAlpha, textAlpha;
+
+        if (progress <= phase1) {
+                const p = easeInOut(progress / phase1);
+                faceScale = 0.70 + p * 0.15;
+                faceOffset = 0.42 - p * 0.02;
+                heartCount = 0;
+                flashAlpha = 0;
+                bgAlpha = p;
+                textAlpha = 0;
+        } else if (progress <= phase2) {
+                const p = easeInOut((progress - phase1) / (phase2 - phase1));
+                faceScale = 0.85 + p * 0.20;
+                faceOffset = 0.40 - p * 0.38;
+                heartCount = Math.floor(p * 5);
+                flashAlpha = 0;
+                bgAlpha = 1;
+                textAlpha = 0;
+        } else if (progress <= phase3) {
+                const p = easeOut((progress - phase2) / (phase3 - phase2));
+                faceScale = 1.05 + p * 0.15;
+                faceOffset = 0.02 - p * 0.02;
+                heartCount = 5 + Math.floor(p * 4);
+                flashAlpha = p * 0.65;
+                bgAlpha = 1;
+                textAlpha = 0;
+        } else {
+                const p = easeOut((progress - phase3) / (phase4 - phase3));
+                faceScale = 1.20 + p * 0.05;
+                faceOffset = 0;
+                heartCount = 9;
+                flashAlpha = 0.65 - p * 0.40;
+                bgAlpha = 1;
+                textAlpha = p;
+        }
+
+        const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.75);
+        bgGrad.addColorStop(0, `rgba(60,0,30,${bgAlpha})`);
+        bgGrad.addColorStop(0.5, `rgba(100,0,50,${bgAlpha})`);
+        bgGrad.addColorStop(1, `rgba(20,0,15,${bgAlpha})`);
+        ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, W, H);
 
-        const phase1End = 0.30;
-        const phase2End = 0.70;
-        const phase3End = 1.00;
-
-        let p1x, p2x, zoom1, zoom2, splitX, splitBlend;
-        const half = W / 2;
-
-        if (progress <= phase1End) {
-                const p = easeInOut(progress / phase1End);
-                p1x = half * 0.50 - p * half * 0.05;
-                p2x = half * 0.50 + p * half * 0.05;
-                zoom1 = 1.0 + p * 0.05;
-                zoom2 = 1.0 + p * 0.05;
-                splitX = half;
-                splitBlend = 0;
-        } else if (progress <= phase2End) {
-                const p = easeInOut((progress - phase1End) / (phase2End - phase1End));
-                p1x = half * 0.45 + p * half * 0.40;
-                p2x = half * 0.55 - p * half * 0.40;
-                zoom1 = 1.05 + p * 0.30;
-                zoom2 = 1.05 + p * 0.30;
-                splitX = half - p * half * 0.35;
-                splitBlend = p * 0.5;
-        } else {
-                const p = easeInOut((progress - phase2End) / (phase3End - phase2End));
-                p1x = half * 0.85 + p * half * 0.05;
-                p2x = half * 0.15 - p * half * 0.05;
-                zoom1 = 1.35 + p * 0.10;
-                zoom2 = 1.35 + p * 0.10;
-                splitX = half - 0.35 * half - p * half * 0.20;
-                splitBlend = 0.5 + p * 0.5;
+        const particleCount = 18;
+        for (let i = 0; i < particleCount; i++) {
+                const angle = (i / particleCount) * Math.PI * 2 + progress * 1.2;
+                const r = W * (0.30 + 0.08 * Math.sin(progress * 3 + i));
+                const px = W / 2 + Math.cos(angle) * r;
+                const py = H / 2 + Math.sin(angle) * r * 0.55;
+                const alpha = 0.03 + 0.04 * Math.sin(progress * 5 + i);
+                ctx.save();
+                ctx.globalAlpha = alpha * bgAlpha;
+                ctx.fillStyle = "#ff69b4";
+                ctx.beginPath();
+                ctx.arc(px, py, 2 + Math.sin(i) * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
         }
 
-        const faceH = H * 1.08;
-        const faceW1 = faceH * (img1.width / img1.height) * zoom1;
-        const faceW2 = faceH * (img2.width / img2.height) * zoom2;
-        const leftX = p1x - faceW1 * 0.5;
-        const rightX = W - p2x - faceW2 * 0.5;
-        const imgY = (H - faceH) / 2;
+        const faceSize = Math.min(W, H) * faceScale * 0.52;
+        const centerY = H * 0.48;
+        const leftCX = W / 2 - faceOffset * W - (faceSize * 0.5);
+        const rightCX = W / 2 + faceOffset * W + (faceSize * 0.5);
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, 0, splitX, H);
-        ctx.clip();
-        ctx.drawImage(img1, leftX, imgY, faceW1, faceH);
-        ctx.restore();
+        const drawCircleFace = (img, box, cx, cy, size, mirror) => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+                ctx.clip();
+                const shadowGrad = ctx.createRadialGradient(cx - size * 0.1, cy - size * 0.1, 0, cx, cy, size / 2);
+                shadowGrad.addColorStop(0, "rgba(255,180,180,0.15)");
+                shadowGrad.addColorStop(1, "rgba(0,0,0,0.35)");
+                cropFaceImage(ctx, img, box, 720, 720, cx - size / 2, cy - size / 2, size, size, mirror);
+                ctx.fillStyle = shadowGrad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(splitX, 0, W - splitX, H);
-        ctx.clip();
-        ctx.drawImage(img2, rightX, imgY, faceW2, faceH);
-        ctx.restore();
+                ctx.save();
+                const borderGrad = ctx.createLinearGradient(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2);
+                borderGrad.addColorStop(0, "rgba(255,150,180,0.9)");
+                borderGrad.addColorStop(0.5, "rgba(255,80,120,0.7)");
+                borderGrad.addColorStop(1, "rgba(200,50,100,0.9)");
+                ctx.strokeStyle = borderGrad;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(cx, cy, size / 2 + 2, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+        };
 
-        if (splitBlend > 0) {
-                const overlapW = Math.max(0, (p1x + faceW1 * 0.4) - (W - p2x - faceW2 * 0.4));
-                if (overlapW > 0) {
-                        const overlapStart = W - p2x - faceW2 * 0.4;
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.rect(overlapStart, 0, overlapW, H);
-                        ctx.clip();
-                        ctx.globalAlpha = splitBlend * 0.6;
-                        ctx.drawImage(img1, leftX, imgY, faceW1, faceH);
-                        ctx.restore();
-                }
-        }
+        drawCircleFace(img1, box1, leftCX + faceSize * 0.5, centerY, faceSize, false);
+        drawCircleFace(img2, box2, rightCX - faceSize * 0.5, centerY, faceSize, true);
 
-        const lineAlpha = Math.max(0, 1.0 - splitBlend * 2.5);
-        if (lineAlpha > 0.02) {
-                const lineGrad = ctx.createLinearGradient(splitX - 2, 0, splitX + 2, 0);
-                lineGrad.addColorStop(0.5, `rgba(220,220,255,${lineAlpha * 0.6})`);
-                ctx.fillStyle = lineGrad;
-                ctx.fillRect(splitX - 2, 0, 4, H);
-        }
-
-        if (progress > 0.55) {
-                const heartAmt = (progress - 0.55) / 0.45;
-                const centerX = lerp(half, splitX + 10, heartAmt);
-                const numHearts = Math.floor(heartAmt * 7);
-                for (let i = 0; i < numHearts; i++) {
-                        const hx = centerX + (Math.sin(i * 2.1) * 90) + Math.sin(progress * 8 + i) * 15;
-                        const hy = H * 0.10 + (i * 30) + Math.sin(progress * 5 + i) * 12;
-                        const hSize = 12 + i * 3;
-                        ctx.save();
-                        ctx.globalAlpha = Math.min(1, heartAmt) * (0.5 + 0.5 * Math.sin(progress * 10 + i));
-                        ctx.fillStyle = "#ff4d94";
-                        ctx.font = `${hSize}px serif`;
-                        ctx.fillText("♥", hx, hy % (H * 0.85));
-                        ctx.restore();
-                }
-        }
-
-        if (progress > 0.50) {
-                const vigAmt = (progress - 0.50) / 0.50;
-                const vigGrad = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, W * 0.75);
-                vigGrad.addColorStop(0, "rgba(0,0,0,0)");
-                vigGrad.addColorStop(1, `rgba(0,0,0,${vigAmt * 0.50})`);
-                ctx.fillStyle = vigGrad;
+        if (progress > phase2 - 0.05) {
+                const kissProgress = Math.max(0, (progress - (phase2 - 0.05)) / 0.05);
+                const glow = ctx.createRadialGradient(W / 2, centerY, 0, W / 2, centerY, faceSize * 0.6);
+                glow.addColorStop(0, `rgba(255,120,180,${0.35 * kissProgress})`);
+                glow.addColorStop(1, "rgba(255,80,120,0)");
+                ctx.fillStyle = glow;
                 ctx.fillRect(0, 0, W, H);
+
+                ctx.save();
+                ctx.globalAlpha = 0.7 * kissProgress;
+                ctx.font = `${Math.floor(faceSize * 0.35)}px serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("💋", W / 2, centerY);
+                ctx.restore();
         }
 
-        ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.font = "bold 18px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("💋", W / 2, H - 16);
-        ctx.restore();
-}
-
-function buildCanvasFallbackVideo(img1, img2, tmpDir, outputPath) {
-        const W = 780, H = 440, FPS = 24;
-        const TOTAL_FRAMES = Math.floor(FPS * 5.5);
-        for (let f = 0; f < TOTAL_FRAMES; f++) {
-                const progress = f / (TOTAL_FRAMES - 1);
-                const canvas = createCanvas(W, H);
-                const ctx = canvas.getContext("2d");
-                drawSplitFrame(ctx, img1, img2, W, H, progress);
-                const framePath = path.join(tmpDir, `frame_${String(f).padStart(4, "0")}.png`);
-                fs.writeFileSync(framePath, canvas.toBuffer("image/png"));
+        if (flashAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = flashAlpha;
+                const flashGrad = ctx.createRadialGradient(W / 2, centerY, 0, W / 2, centerY, W * 0.6);
+                flashGrad.addColorStop(0, "rgba(255,220,240,1)");
+                flashGrad.addColorStop(0.3, "rgba(255,150,200,0.5)");
+                flashGrad.addColorStop(1, "rgba(255,80,120,0)");
+                ctx.fillStyle = flashGrad;
+                ctx.fillRect(0, 0, W, H);
+                ctx.restore();
         }
-        execSync(
-                `ffmpeg -y -framerate ${FPS} -i "${path.join(tmpDir, "frame_%04d.png")}" ` +
-                `-vf "scale=${W}:${H}" -c:v libx264 -preset fast -crf 20 -pix_fmt yuv420p "${outputPath}"`,
-                { timeout: 90000 }
-        );
+
+        const heartEmojis = ["❤️", "💕", "💗", "💓", "💖", "💝", "💞"];
+        for (let i = 0; i < heartCount; i++) {
+                const seed = i * 137.508;
+                const hx = (W * 0.15) + (seed % (W * 0.70));
+                const baseY = H * 0.85 - (i / 9) * H * 0.65;
+                const hy = baseY - (progress * 0.5) * H * 0.5 + Math.sin(progress * 6 + i) * 18;
+                const hSize = 14 + (i % 3) * 6;
+                const hAlpha = Math.max(0, 0.85 - ((H * 0.85 - hy) / (H * 0.65)));
+
+                ctx.save();
+                ctx.globalAlpha = hAlpha * Math.min(1, heartCount / 9);
+                ctx.font = `${hSize}px serif`;
+                ctx.textAlign = "center";
+                ctx.fillText(heartEmojis[i % heartEmojis.length], hx, hy);
+                ctx.restore();
+        }
+
+        if (textAlpha > 0) {
+                const label = `${senderName} 💋 ${targetName}`;
+                ctx.save();
+                ctx.globalAlpha = textAlpha;
+                ctx.font = "bold 20px Arial, sans-serif";
+                ctx.textAlign = "center";
+                ctx.shadowColor = "rgba(255,80,120,0.8)";
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = "#ffffff";
+                ctx.fillText(label, W / 2, H - 28);
+                ctx.restore();
+        }
+
+        const vigGrad = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, W * 0.72);
+        vigGrad.addColorStop(0, "rgba(0,0,0,0)");
+        vigGrad.addColorStop(1, "rgba(0,0,0,0.55)");
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(0, 0, W, H);
 }
 
 module.exports = {
         config: {
                 name: "قبلة",
                 aliases: ["kiss"],
-                version: "5.0",
+                version: "6.0",
                 author: "BlackBot",
                 countDown: 20,
                 role: 0,
-                shortDescription: "فيديو قبلة بصور البروفايل (ذكاء اصطناعي)",
-                longDescription: "ينشئ فيديو MP4 بالذكاء الاصطناعي يُحرّك صور البروفايل في مشهد قبلة",
+                shortDescription: "فيديو قبلة رومانسي بالذكاء الاصطناعي",
+                longDescription: "ينشئ فيديو MP4 رومانسي يجمع صور البروفايل في مشهد قبلة بكشف الوجه AI",
                 category: "fun",
                 guide: "{pn} @ذكر أو رد على رسالة"
         },
 
-        onStart: async function ({ message, event, api }) {
+        onStart: async function ({ message, event }) {
                 const tmpDir = path.join(__dirname, `kiss_tmp_${Date.now()}`);
                 fs.mkdirSync(tmpDir, { recursive: true });
 
@@ -223,50 +264,47 @@ module.exports = {
                         const senderName = event.senderName || "شخص";
                         const targetName = (event.mentions || {})[targetID] || "آخر";
 
+                        await message.reply("⏳ | جاري إنشاء الفيديو...");
+
                         const img1Path = path.join(tmpDir, "img1.jpg");
                         const img2Path = path.join(tmpDir, "img2.jpg");
-
-                        await message.reply("⏳ | جاري إنشاء الفيديو...");
 
                         await Promise.all([
                                 fetchProfilePic(senderID, img1Path),
                                 fetchProfilePic(targetID, img2Path)
                         ]);
 
+                        const [box1, box2] = await Promise.all([
+                                detectFace(img1Path),
+                                detectFace(img2Path)
+                        ]);
+
+                        const [img1, img2] = await Promise.all([
+                                loadImage(img1Path),
+                                loadImage(img2Path)
+                        ]);
+
+                        const W = 780, H = 440, FPS = 24;
+                        const TOTAL_FRAMES = Math.floor(FPS * 5.0);
+
+                        for (let f = 0; f < TOTAL_FRAMES; f++) {
+                                const progress = f / (TOTAL_FRAMES - 1);
+                                const canvas = createCanvas(W, H);
+                                const ctx = canvas.getContext("2d");
+                                drawRomanticFrame(ctx, img1, img2, box1, box2, W, H, progress, senderName, targetName);
+                                const framePath = path.join(tmpDir, `frame_${String(f).padStart(4, "0")}.png`);
+                                fs.writeFileSync(framePath, canvas.toBuffer("image/png"));
+                        }
+
                         const outputPath = path.join(tmpDir, "kiss_output.mp4");
-                        let usedAI = false;
-
-                        if (HF_TOKEN) {
-                                try {
-                                        const [vid1Buf, vid2Buf] = await Promise.all([
-                                                animateWithSVD(img1Path),
-                                                animateWithSVD(img2Path)
-                                        ]);
-
-                                        const vid1Path = path.join(tmpDir, "anim1.mp4");
-                                        const vid2Path = path.join(tmpDir, "anim2.mp4");
-                                        fs.writeFileSync(vid1Path, vid1Buf);
-                                        fs.writeFileSync(vid2Path, vid2Buf);
-
-                                        buildAIVideo(vid1Path, vid2Path, outputPath, senderName, targetName);
-                                        usedAI = true;
-                                } catch (hfErr) {
-                                        console.error("[قبلة][HF]", hfErr.message || hfErr);
-                                }
-                        }
-
-                        if (!usedAI) {
-                                const img1 = await loadImage(img1Path);
-                                const img2 = await loadImage(img2Path);
-                                buildCanvasFallbackVideo(img1, img2, tmpDir, outputPath);
-                        }
-
-                        const label = usedAI
-                                ? `🤖💋 | ${senderName} قبّل ${targetName} 💕`
-                                : `💋 | ${senderName} قبّل ${targetName} 💕`;
+                        execSync(
+                                `ffmpeg -y -framerate ${FPS} -i "${path.join(tmpDir, "frame_%04d.png")}" ` +
+                                `-vf "scale=${W}:${H}" -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p "${outputPath}"`,
+                                { timeout: 90000 }
+                        );
 
                         await message.reply({
-                                body: label,
+                                body: `💋 | ${senderName} قبّل ${targetName} 💕`,
                                 attachment: fs.createReadStream(outputPath)
                         });
 
