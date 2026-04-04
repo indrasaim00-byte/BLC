@@ -122,10 +122,10 @@
   "autoRestartWhenListenMqttError": true,
   "restartListenMqtt": {
     "enable": true,
-    "timeRestart": 900000,
-    "delayAfterStopListening": 1500,
-    "logNoti": true,
-    "notes": "Restart listener every 15 minutes."
+    "timeRestart": 300000,
+    "delayAfterStopListening": 1000,
+    "logNoti": false,
+    "notes": "Restart listener every 5 minutes."
   },
   "notiWhenListenMqttError": {
     "notes": "Notification settings when MQTT stops listening.",

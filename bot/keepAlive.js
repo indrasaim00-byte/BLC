@@ -6,21 +6,11 @@ let pingTimer = null;
 let saveTimer = null;
 let inboxTimer = null;
 let selfPingTimer = null;
-let watchdogTimer = null;
-let isReconnecting = false;
-
-let lastMessageTime = Date.now();
-const WATCHDOG_SILENCE_MS = 8 * 60 * 1000;
-const WATCHDOG_CHECK_MS = 3 * 60 * 1000;
 
 function getRandomMs(minMinutes, maxMinutes) {
   const minMs = minMinutes * 60 * 1000;
   const maxMs = maxMinutes * 60 * 1000;
   return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
-}
-
-function recordMessageActivity() {
-  lastMessageTime = Date.now();
 }
 
 async function doPing() {
@@ -29,15 +19,12 @@ async function doPing() {
     if (!api) return;
     const appState = api.getAppState();
     if (!appState || !appState.length) return;
-
     const cookieStr = appState.map(c => `${c.key}=${c.value}`).join("; ");
     const userAgent =
       global.BlackBot.config?.facebookAccount?.userAgent ||
       "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.7103.60 Mobile Safari/537.36";
-
     const endpoints = ["https://mbasic.facebook.com/", "https://m.facebook.com/"];
     const url = endpoints[Math.floor(Math.random() * endpoints.length)];
-
     await axios.get(url, {
       headers: {
         "cookie": cookieStr,
@@ -61,51 +48,6 @@ async function doSelfPing() {
     if (!domain) return;
     await axios.get(`https://${domain}/`, { timeout: 10000 });
   } catch (_) {}
-}
-
-async function tryMqttReconnect() {
-  if (isReconnecting) return;
-  isReconnecting = true;
-
-  try {
-    global.utils.log.warn("WATCHDOG", "⚠️ MQTT silent — attempting reconnect without restart...");
-    const api = global.BlackBot.fcaApi;
-    if (!api) {
-      isReconnecting = false;
-      return;
-    }
-
-    if (typeof api.stopListening === "function") {
-      try { api.stopListening(); } catch (_) {}
-    }
-
-    await new Promise(r => setTimeout(r, 2000));
-
-    if (typeof api.listenMqtt === "function") {
-      const callback = global.BlackBot.Listening?.callback || (() => {});
-      api.listenMqtt(callback);
-      lastMessageTime = Date.now();
-      global.utils.log.info("WATCHDOG", "✅ MQTT reconnect triggered");
-    } else {
-      global.utils.log.warn("WATCHDOG", "⚠️ listenMqtt not available — restarting process");
-      process.exit(2);
-    }
-  } catch (e) {
-    global.utils.log.warn("WATCHDOG", "⚠️ Reconnect failed: " + e.message + " — restarting");
-    process.exit(2);
-  } finally {
-    setTimeout(() => { isReconnecting = false; }, 30000);
-  }
-}
-
-async function doWatchdog() {
-  if (isReconnecting) return;
-  const silenceMs = Date.now() - lastMessageTime;
-  if (silenceMs > WATCHDOG_SILENCE_MS) {
-    const minutes = Math.round(silenceMs / 60000);
-    global.utils.log.warn("WATCHDOG", `⚠️ No activity for ${minutes} min — reconnecting MQTT...`);
-    await tryMqttReconnect();
-  }
 }
 
 async function doSaveCookies() {
@@ -146,11 +88,6 @@ function scheduleSave() {
   saveTimer = setInterval(doSaveCookies, 6 * 60 * 60 * 1000);
 }
 
-function scheduleWatchdog() {
-  if (watchdogTimer) clearInterval(watchdogTimer);
-  watchdogTimer = setInterval(doWatchdog, WATCHDOG_CHECK_MS);
-}
-
 async function doAcceptInbox() {
   try {
     const api = global.BlackBot.fcaApi;
@@ -187,20 +124,15 @@ module.exports = function startKeepAlive() {
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
   if (selfPingTimer) clearInterval(selfPingTimer);
-  if (watchdogTimer) clearInterval(watchdogTimer);
-
-  lastMessageTime = Date.now();
-  isReconnecting = false;
 
   global.utils.log.info(
     "KEEP_ALIVE",
-    "🚀 Keep-alive started | Ping 4–8m | Self-ping 4m | Watchdog 3m | Cookies 6h"
+    "🚀 Keep-alive started | Ping 4–8m | Self-ping 4m | Cookies 6h"
   );
 
   schedulePing();
   scheduleSave();
   scheduleSelfPing();
-  scheduleWatchdog();
   doAcceptInbox();
   scheduleInbox();
   doSelfPing();
@@ -211,12 +143,10 @@ module.exports.stop = function () {
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
   if (selfPingTimer) clearInterval(selfPingTimer);
-  if (watchdogTimer) clearInterval(watchdogTimer);
   pingTimer = null;
   saveTimer = null;
   inboxTimer = null;
   selfPingTimer = null;
-  watchdogTimer = null;
 };
 
-module.exports.recordActivity = recordMessageActivity;
+module.exports.recordActivity = function () {};
