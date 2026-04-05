@@ -11,9 +11,11 @@ yarn-error.log*
 # Sensitive / Secret Files
 # ===========================
 config.json
+config\ \(copy\).json
 account.txt
 fca-config.json
 fb_dtsg_data.json
+configCommands.json
 
 # ===========================
 # Database Files
