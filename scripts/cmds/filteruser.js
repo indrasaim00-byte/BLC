@@ -4,7 +4,7 @@ function sleep(time) {
 
 module.exports = {
 	config: {
-		name: "تصفية-عضو",
+		name: "تصفية",
     aliases: ["filteruser"],
 		version: "1.6",
 		author: "Saint",
