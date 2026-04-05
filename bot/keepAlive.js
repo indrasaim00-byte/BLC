@@ -6,6 +6,15 @@ let pingTimer = null;
 let saveTimer = null;
 let inboxTimer = null;
 let selfPingTimer = null;
+let watchdogTimer = null;
+
+let lastActivityTime = Date.now();
+const WATCHDOG_SILENCE_MS = 10 * 60 * 1000; // 10 minutes of silence → reconnect MQTT
+const WATCHDOG_CHECK_MS  =  3 * 60 * 1000;  // Check every 3 minutes
+
+function recordActivity() {
+  lastActivityTime = Date.now();
+}
 
 function getRandomMs(minMinutes, maxMinutes) {
   const minMs = minMinutes * 60 * 1000;
@@ -15,7 +24,7 @@ function getRandomMs(minMinutes, maxMinutes) {
 
 async function doPing() {
   try {
-    const api = global.BlackBot.fcaApi;
+    const api = global.BlackBot?.fcaApi;
     if (!api) return;
     const appState = api.getAppState();
     if (!appState || !appState.length) return;
@@ -37,6 +46,7 @@ async function doPing() {
       timeout: 15000,
     });
     global.utils.log.info("KEEP_ALIVE", "✅ Ping sent — account stays active");
+    recordActivity();
   } catch (e) {
     global.utils.log.warn("KEEP_ALIVE", "⚠️ Ping failed: " + (e.message || e));
   }
@@ -52,7 +62,7 @@ async function doSelfPing() {
 
 async function doSaveCookies() {
   try {
-    const api = global.BlackBot.fcaApi;
+    const api = global.BlackBot?.fcaApi;
     if (!api) return;
     const appState = api.getAppState();
     if (!appState || !appState.length) return;
@@ -65,6 +75,52 @@ async function doSaveCookies() {
   } catch (e) {
     global.utils.log.warn("KEEP_ALIVE", "⚠️ Failed to save cookies: " + (e.message || e));
   }
+}
+
+async function tryReconnectMqtt() {
+  try {
+    const api = global.BlackBot?.fcaApi;
+    const cb  = global.BlackBot?.callBackListen;
+    if (!api || !cb) return false;
+
+    // Stop current listening gracefully
+    if (global.BlackBot.Listening && typeof global.BlackBot.Listening.stopListening === "function") {
+      try { global.BlackBot.Listening.stopListening(); } catch (_) {}
+    }
+
+    await new Promise(r => setTimeout(r, 1500));
+
+    // Restart MQTT, forwarding events to the original handler
+    global.BlackBot.Listening = api.listenMqtt(function (err, event) {
+      if (err) return;
+      try { cb(null, event); } catch (_) {}
+    });
+
+    return true;
+  } catch (e) {
+    global.utils.log.warn("KEEP_ALIVE", "⚠️ MQTT reconnect error: " + (e.message || e));
+    return false;
+  }
+}
+
+function scheduleWatchdog() {
+  if (watchdogTimer) clearInterval(watchdogTimer);
+  watchdogTimer = setInterval(async () => {
+    const silenceMs = Date.now() - lastActivityTime;
+    if (silenceMs >= WATCHDOG_SILENCE_MS) {
+      global.utils.log.warn(
+        "KEEP_ALIVE",
+        `⚠️ Silence ${Math.round(silenceMs / 60000)}m — reconnecting MQTT...`
+      );
+      const ok = await tryReconnectMqtt();
+      if (ok) {
+        recordActivity();
+        global.utils.log.info("KEEP_ALIVE", "✅ MQTT reconnected successfully");
+      } else {
+        global.utils.log.warn("KEEP_ALIVE", "❌ MQTT reconnect failed, retrying next cycle");
+      }
+    }
+  }, WATCHDOG_CHECK_MS);
 }
 
 function schedulePing() {
@@ -90,7 +146,7 @@ function scheduleSave() {
 
 async function doAcceptInbox() {
   try {
-    const api = global.BlackBot.fcaApi;
+    const api = global.BlackBot?.fcaApi;
     if (!api) return;
     if (global.BlackBot.config.antiInbox === true) return;
     let accepted = 0;
@@ -124,15 +180,19 @@ module.exports = function startKeepAlive() {
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
   if (selfPingTimer) clearInterval(selfPingTimer);
+  if (watchdogTimer) clearInterval(watchdogTimer);
+
+  lastActivityTime = Date.now();
 
   global.utils.log.info(
     "KEEP_ALIVE",
-    "🚀 Keep-alive started | Ping 4–8m | Self-ping 4m | Cookies 6h"
+    "🚀 Keep-alive started | Ping 4–8m | Self-ping 4m | Watchdog 3m | Cookies 6h"
   );
 
   schedulePing();
   scheduleSave();
   scheduleSelfPing();
+  scheduleWatchdog();
   doAcceptInbox();
   scheduleInbox();
   doSelfPing();
@@ -143,10 +203,12 @@ module.exports.stop = function () {
   if (saveTimer) clearInterval(saveTimer);
   if (inboxTimer) clearInterval(inboxTimer);
   if (selfPingTimer) clearInterval(selfPingTimer);
+  if (watchdogTimer) clearInterval(watchdogTimer);
   pingTimer = null;
   saveTimer = null;
   inboxTimer = null;
   selfPingTimer = null;
+  watchdogTimer = null;
 };
 
-module.exports.recordActivity = function () {};
+module.exports.recordActivity = recordActivity;
